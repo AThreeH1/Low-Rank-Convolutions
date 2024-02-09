@@ -1,6 +1,6 @@
 TODOs
-- [ ] make the repo private
-- [ ] explain in the README.md exactly what I have to do to run
+- [x] make the repo private
+- [x] explain in the README.md exactly what I have to do to run
       (no notebooks, just scripts)
 
 RESEARCH QUESTIONS
