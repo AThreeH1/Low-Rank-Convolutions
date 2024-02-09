@@ -4,7 +4,7 @@ TODOs
       (no notebooks, just scripts)
 
 RESEARCH QUESTIONS
-- [ ] weird learning behavior: exploding gradients
+- [x] weird learning behavior: exploding gradients
 - [x] nr of parameters / memory (15 GB)
 - [ ] hyena / low-rank functions
 
