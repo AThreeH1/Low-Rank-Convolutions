@@ -138,3 +138,37 @@ Example f rank 5, all h's rank 3.
 Then: after first hyena convolution, we get rank 15.
 After the product, we get rank 75.
 After the next convolution we get rank 225.
+
+For rank n function and rank m filter, we get rank $n*m$.
+
+Proof:
+
+$$
+    f(t,t') = \sum_{j=1}^{n} f_{2j-1}(s) f_{2j}(s')
+$$
+
+$$
+    h(t,t') = \sum_{i=1}^{m} h_{2i-1}(t) h_{2i}(t')
+$$
+
+as we know:
+
+$$
+    (h \ast f)(t,t')
+    = \sum_{(s,s')\in [T]^2} h(t-s,t'-s') f(s, s').
+$$
+
+Therefore for n rank function and m rank filter:
+
+$$
+    (h \ast f)(t,t') = \sum_{(s,s')\in [T]^2} \sum_{i=1}^{m} h_{2i-1}(t-s) h_{2i}(t'-s') \sum_{j=1}^{n} f_{2j-1}(s) f_{2j}(s') 
+$$
+
+$$
+    (h \ast f)(t,t') = \sum_{i=1}^{m} \sum_{j=1}^{n} \left( \sum_{s\in [T]} h_{2i-1}(t-s) f_{2j-1}(s) \right) \left( \sum_{s'\in [T]} h_{2i}(t'-s') f_{2j}(s') \right)
+$$
+
+
+Therefore, m combinations of n rank, i.e. m times n unique pairs. 
+
+Hence proved that for n rank function and m rank filter, we get a hyena convolution output .
