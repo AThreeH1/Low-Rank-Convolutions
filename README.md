@@ -6,3 +6,7 @@ To run the code provided in the repository please follow the following steps:
 2. Run MultiHeadAttention.py
 3. Run HyenaLightning.py
 4. Run Analysis.py by changing the appropriate values of hyperparameters such as order, learning rate, optimizer, etc. Log into wandb account to log gradients, losses, errors, etc.
+
+For hyena convolution over low-rank functions: \
+Download the data here - https://drive.google.com/file/d/1amypY8KfLQP5Fu2X2pTBnKUtip1akUT3/view?usp=sharing \
+Use the script LowRankFunction.py with the appropriate path for the data
