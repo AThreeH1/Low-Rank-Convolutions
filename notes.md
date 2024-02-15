@@ -172,3 +172,23 @@ $$
 Therefore, m combinations of n rank, i.e. m times n unique pairs. 
 
 Hence proved that for n rank function and m rank filter, we get a hyena convolution output .
+
+Let us try to implement hyena convolutions for low rank functions - \
+For this, we assume a function f 
+$$
+    f: [T] \times [T] \to \mathbb R^d.
+$$
+Over the dataset with the following details:
+
+1. Time series data of the prices of one of the given forex pairs: AUDUSD or EURUSD. 
+2. Function with two inputs t_1 and t_2 represting two timestamps.
+3. Output of the function being the average price between the interval t_1 and t_2 for rank 1 function. 
+
+Source(Data): https://www.axiory.com/trading-tools/metatrader-historical-data
+
+Therefore:
+$$
+    f(t_1, t_2) = mean(p(t_1):p(t_2))
+$$
+where, \
+p(t) = price at time t
