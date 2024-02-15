@@ -182,13 +182,38 @@ Over the dataset with the following details:
 
 1. Time series data of the prices of one of the given forex pairs: AUDUSD or EURUSD. 
 2. Function with two inputs t_1 and t_2 represting two timestamps.
-3. Output of the function being the average price between the interval t_1 and t_2 for rank 1 function. 
+3. Output of the function being the percentage price difference between the interval t_1 and t_2 giving a rank 2 function.
 
 Source(Data): https://www.axiory.com/trading-tools/metatrader-historical-data
 
 Therefore:
+
 $$
-    f(t_1, t_2) = mean(p(t_1):p(t_2))
+    f(t_1, t_2) = \frac{p(t_2) - p(t_1)}{p(t_1)} * 100
 $$
 where, \
 p(t) = price at time t
+
+We can write the function f (a low rank function) as:
+
+$$
+    f(t_1, t_2) = f_1(t_1).f_2(t_2) + f_3(t_1).f_4(t_2)
+$$
+
+where,
+
+$$
+    f_1(t_1) = \frac{1}{p(t_1)}
+$$
+
+$$
+    f_2(t_2) = 100* p(t_2)
+$$
+
+$$
+    f_3(t_1) = -1
+$$
+
+$$
+    f_4(t_2) = 100
+$$
