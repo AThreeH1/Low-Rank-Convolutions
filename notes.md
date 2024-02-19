@@ -32,7 +32,7 @@ for some ''value'' $v: [T] \times [T] \to \mathbb R^d$ and ''query'' $q \in \mat
 If we want to do self-attention, it becomes $\mathcal O(T^4)$.
 
 [TODO convince yourself that one could also do this with hyena,
-at this high cost.]
+at this high cost.]\
 
 If d = 2, we can write the function as:
 $$
