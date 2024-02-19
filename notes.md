@@ -34,6 +34,11 @@ If we want to do self-attention, it becomes $\mathcal O(T^4)$.
 [TODO convince yourself that one could also do this with hyena,
 at this high cost.]
 
+If d = 2, we can write the function as:
+$$
+    f(x,y) = [O_1, O_2] = [f_a(x,y), f_b(x,y)]
+$$
+and continue the following process, but for now, let us build a case for d = 1 for simplicity.
 <!-- If we want to apply attention or Hyena to $f$, we need to -->
 <!-- do $\mathcal O(T^2)$ calculations. If we want to do self-attention -->
 <!-- it becomes $\mathcal O(T^4)$. Goal: speed this up. -->
@@ -217,3 +222,4 @@ $$
 $$
     f_4(t_2) = 100
 $$
+
