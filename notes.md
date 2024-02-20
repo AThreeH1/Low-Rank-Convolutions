@@ -223,3 +223,12 @@ $$
     f_4(t_2) = 100
 $$
 
+$$
+    (h \ast f)(t,t') = \sum_{s\in [T]} h_1(t-s) f_1(s) \sum_{s'\in [T]} h_2(t'-s') f_2(s')\\ 
+
+    + \sum_{s\in [T]} h_3(t-s) f_1(s) \sum_{s'\in [T]} h_4(t'-s') f_2(s')\\ 
+
+    + \sum_{s\in [T]} h_1(t-s) f_3(s) \sum_{s'\in [T]} h_2(t'-s') f_4(s')\\ 
+
+    + \sum_{s\in [T]} h_3(t-s) f_3(s) \sum_{s'\in [T]} h_4(t'-s') f_4(s')
+$$
