@@ -229,3 +229,74 @@ $$
     + \sum_{s\in [T]} h_1(t-s) f_3(s) \sum_{s'\in [T]} h_2(t'-s') f_4(s')\\ 
     + \sum_{s\in [T]} h_3(t-s) f_3(s) \sum_{s'\in [T]} h_4(t'-s') f_4(s')
 $$
+
+
+# Systematic approach to creating low-rank interval functions
+
+We saw the example, for any $n \ge 1$,
+$$
+    f^{[1^n]}(s,t) := \sum_{s \le i < t} (x_i)^n.
+$$
+This is low-rank: because we can write it as
+$$
+    f^{[1^n]}(s,t)
+    = f^{[1^n]}(0,t) - f^{[1^n]}(0,s).
+    = f^{[1^n]}(0,t) 1(s) - 1(t) f(0,s).
+$$
+
+Let us try
+$$
+    f^{[1][1]}(s,t)
+    := \sum_{s \le i_1 < i_2 < t} x_{i_1} x_{i_2}
+    := \sum_{i_2=s}^{t} x_{i_2} \sum_{i_1=s}^{i_2} x_{i_1}.
+$$
+
+Then can one check, by hand,
+$$
+    f^{[1][1]}(0,t) - f^{[1][1]}(0,s)
+    =
+    \sum_{0 \le i_1 < i_2 < t} x_{i_1} x_{i_2}
+    -
+    \sum_{0 \le i_1 < i_2 < s} x_{i_1} x_{i_2}
+    =
+    \sum_{s \le i_1 < i_2 < t} x_{i_1} x_{i_2}
+    +
+    \sum_{i_1 < s \le i_2 < t} x_{i_1} x_{i_2}
+    =
+    f^{[1][1]}(s,t)
+    +
+    \sum_{i_1 < s} x_{i_1} \cdot \sum_{s \le i_2 < t} x_{i_2}
+    =
+    f^{[1][1]}(s,t)
+    +
+    f^{[1]}(0,s) f^{[1]}(s,t).
+    =
+    f^{[1][1]}(s,t)
+    +
+    f^{[1]}(0,s) ( f^{[1]}(0,t) - f^{[1]}(0,s) )
+$$
+since for $0 \le i_1 < i_2 < s$ either
+- $i_1 < i_2 < s$
+- $s \le i_1 < i_2 < t$
+- $i_1 < s \le i_2 < t$.
+
+Summarizing:
+$$
+    f^{[1][1]}(s,t)
+    =
+    f^{[1][1]}(0,t) - f^{[1][1]}(0,s)
+    -
+    f^{[1]}(0,s) f^{[1]}(0,t) 
+    +
+    f^{[1]}(0,s) f^{[1]}(0,s).
+$$
+
+What about
+$$
+    \sum_{0 \le i_1 < i_2 < ... < i_k < t} x^{\alpha_1}_{i_1} ... x^{\alpha_k}_{i_k} ??
+$$
+
+see:
+https://link.springer.com/article/10.1007/s10440-020-00333-x
+and
+https://arxiv.org/abs/2009.08443
