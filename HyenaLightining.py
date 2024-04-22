@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 def fftconv(u, k, D):
     seqlen = u.shape[-1]
     fft_size = 2 * seqlen
@@ -17,16 +11,8 @@ def fftconv(u, k, D):
     out = y + u * D.unsqueeze(-1)
     return out.to(dtype=u.dtype)
 
-
-# In[ ]:
-
-
 def mul_sum(q, y):
     return (q * y).sum(dim=1)
-
-
-# In[ ]:
-
 
 class OptimModule(nn.Module):
     """ Interface for Module that allows registering buffers/parameters with configurable optimizer hyperparameters """
@@ -44,10 +30,6 @@ class OptimModule(nn.Module):
             if wd is not None: optim["weight_decay"] = wd
             setattr(getattr(self, name), "_optim", optim)
 
-
-# In[ ]:
-
-
 class Sin(nn.Module):
     def __init__(self, dim, w=10, train_freq=True):
         super().__init__()
@@ -55,10 +37,6 @@ class Sin(nn.Module):
 
     def forward(self, x):
         return torch.sin(self.freq * x)
-
-
-# In[ ]:
-
 
 class PositionalEmbedding(OptimModule):
     def __init__(self, emb_dim: int, seq_len: int, lr_pos_emb: float=1e-5, **kwargs):
@@ -83,10 +61,6 @@ class PositionalEmbedding(OptimModule):
 
     def forward(self, L):
         return self.z[:, :L], self.t[:, :L]
-
-
-# In[ ]:
-
 
 class ExponentialModulation(OptimModule):
     def __init__(
@@ -113,9 +87,6 @@ class ExponentialModulation(OptimModule):
             decay = torch.exp(-t * self.deltas.abs())
             x = x * (decay + self.shift)
         return x
-
-
-# In[ ]:
 
 
 class HyenaFilter(OptimModule):
@@ -194,10 +165,7 @@ class HyenaFilter(OptimModule):
         return y
 
 
-# In[ ]:
-
-
-class HyenaOperator(pl.LightningModule):
+class HyenaOperator(pl.LightningModule): # TODO This should be a OptimModule !!!
     def __init__(
             self,
             d_model,
@@ -310,3 +278,8 @@ class HyenaOperator(pl.LightningModule):
     #     avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
     #     return {'loss': avg_loss}
 
+
+
+def test_hyena_operator():
+    # TODO verify that l_max, d_max, .. mean what we think they mean.
+    pass

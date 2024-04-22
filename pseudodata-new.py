@@ -18,7 +18,7 @@ import random
 import pandas as pd
 
 
-wandb.login()
+# wandb.login()
 
 """## Data"""
 
@@ -146,7 +146,7 @@ print('data stored')
 
 def run_ffn():
     # Separate inputs and targets
-    device = torch.device("cpu")
+    device = torch.device("cuda")
     inputs = []
     targets = []
     for i in data:
@@ -234,6 +234,8 @@ def run_ffn():
     # Evaluate the model
     trainer.test()
 
+# run_ffn()
+
 """## CNN"""
 
 
@@ -242,7 +244,7 @@ def run_cnn():
     batch_size = 32
     num_epochs = 10
 
-    device = torch.device("cpu")
+    device = torch.device("cuda")
     inputs = []
     targets = []
     for i in data:
@@ -321,6 +323,7 @@ def run_cnn():
     trainer.test()
 
 # run_cnn()
+# xxx
 
 """## Hyena Hierarchy Lightning"""
 
@@ -364,134 +367,17 @@ class Sin(nn.Module):
     def forward(self, x):
         return torch.sin(self.freq * x)
 
-class PositionalEmbedding(OptimModule):
-    def __init__(self, emb_dim: int, seq_len: int, lr_pos_emb: float=1e-5, **kwargs):
-        """Complex exponential positional embeddings for Hyena filters."""
-        super().__init__()
+from HyenaLightining import PositionalEmbedding, ExponentialModulation, HyenaFilter
 
-        self.seq_len = seq_len
-        # The time embedding fed to the filteres is normalized so that t_f = 1
-        t = torch.linspace(0, 1, self.seq_len)[None, :, None] # 1, L, 1
+class CosSinHyenaClassifier(pl.LightningModule):
+    # TODO
+    pass
 
-        if emb_dim > 1:
-            bands = (emb_dim - 1) // 2
-        # To compute the right embeddings we use the "proper" linspace
-        t_rescaled = torch.linspace(0, seq_len - 1, seq_len)[None, :, None]
-        w = 2 * math.pi * t_rescaled / seq_len # 1, L, 1
+    def forward(self,x):
+        x = hyena(x)
+        return fcn(x.flatten())
 
-        f = torch.linspace(1e-4, bands - 1, bands)[None, None]
-        z = torch.exp(-1j * f * w)
-        z = torch.cat([t, z.real, z.imag], dim=-1)
-        self.register("z", z, lr=lr_pos_emb)
-        self.register("t", t, lr=0.0)
-
-    def forward(self, L):
-        return self.z[:, :L], self.t[:, :L]
-
-class ExponentialModulation(OptimModule):
-    def __init__(
-        self,
-        d_model,
-        fast_decay_pct=0.3,
-        slow_decay_pct=1.5,
-        target=1e-2,
-        modulation_lr=0.0,
-        modulate: bool=True,
-        shift: float = 0.0,
-        **kwargs
-    ):
-        super().__init__()
-        self.modulate = modulate
-        self.shift = shift
-        max_decay = math.log(target) / fast_decay_pct
-        min_decay = math.log(target) / slow_decay_pct
-        deltas = torch.linspace(min_decay, max_decay, d_model)[None, None]
-        self.register("deltas", deltas, lr=modulation_lr)
-
-    def forward(self, t, x):
-        if self.modulate:
-            decay = torch.exp(-t * self.deltas.abs())
-            x = x * (decay + self.shift)
-        return x
-
-class HyenaFilter(OptimModule):
-    def __init__(
-            self,
-            d_model,
-            emb_dim=3, # dim of input to MLP, augments with positional encoding
-            order=16, # width of the implicit MLP
-            fused_fft_conv=False,
-            seq_len=1024,
-            lr=1e-3,
-            lr_pos_emb=1e-5,
-            dropout=0.0,
-            w=1, # frequency of periodic activations
-            wd=0, # weight decay of kernel parameters
-            bias=True,
-            num_inner_mlps=2,
-            normalized=False,
-            **kwargs
-        ):
-        """
-        Implicit long filter with modulation.
-
-        Args:
-            d_model: number of channels in the input
-            emb_dim: dimension of the positional encoding (`emb_dim` - 1) // 2 is the number of bands
-            order: width of the FFN
-            num_inner_mlps: number of inner linear layers inside filter MLP
-        """
-        super().__init__()
-        self.d_model = d_model
-        self.use_bias = bias
-        self.fused_fft_conv = fused_fft_conv
-        self.bias = nn.Parameter(torch.randn(self.d_model))
-        self.dropout = nn.Dropout(dropout)
-
-        act = Sin(dim=order, w=w)
-        self.emb_dim = emb_dim
-        assert emb_dim % 2 != 0 and emb_dim >= 3, "emb_dim must be odd and greater or equal to 3 (time, sine and cosine)"
-        self.seq_len = seq_len
-
-        self.pos_emb = PositionalEmbedding(emb_dim, seq_len, lr_pos_emb)
-
-        self.implicit_filter = nn.Sequential(
-            nn.Linear(emb_dim, order),
-            act,
-        )
-        for i in range(num_inner_mlps):
-            self.implicit_filter.append(nn.Linear(order, order))
-            self.implicit_filter.append(act)
-
-        self.implicit_filter.append(nn.Linear(order, d_model, bias=False))
-
-        self.modulation = ExponentialModulation(d_model, **kwargs)
-
-        self.normalized = normalized
-        for c in self.implicit_filter.children():
-            for name, v in c.state_dict().items():
-                optim = {"weight_decay": wd, "lr": lr}
-                setattr(getattr(c, name), "_optim", optim)
-
-
-    def filter(self, L, *args, **kwargs):
-        z, t = self.pos_emb(L)
-        h = self.implicit_filter(z)
-        h = self.modulation(t, h)
-        return h
-
-    def forward(self, x, L, k=None, bias=None, *args, **kwargs):
-        if k is None: k = self.filter(L)
-
-        # Ensure compatibility with filters that return a tuple
-        k = k[0] if type(k) is tuple else k
-
-        y = fftconv(x, k, bias)
-        return y
-
-# Adding FFN
-
-class HyenaOperator(pl.LightningModule):
+class HyenaOperator(pl.LightningModule): # Should this not be a OptimModule ?
     def __init__(
             self,
             d_model,
@@ -545,9 +431,11 @@ class HyenaOperator(pl.LightningModule):
 
         # Feed-forward layers for classification
         self.ff_layers = nn.Sequential(
+            # nn.Linear(d_model * l_max, num_classes)
             nn.Linear(d_model * l_max, ff_hidden_dim),
             nn.ReLU(),
-            *[nn.Linear(ff_hidden_dim, ff_hidden_dim) for _ in range(ff_num_layers - 1)],
+            # *[nn.Linear(ff_hidden_dim, ff_hidden_dim) for _ in range(ff_num_layers - 1)],
+            # nn.Linear(ff_hidden_dim, ff_hidden_dim),
             nn.Linear(ff_hidden_dim, 64),
             # nn.ReLU(),
             # nn.Linear(64, 64),
@@ -558,7 +446,8 @@ class HyenaOperator(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, u, *args, **kwargs):
-        l = u.size(-2)
+        l = u.size(-2) # This is the ambient dimension of the input !?
+        print('l=', l, u.size())
         l_filter = min(l, self.l_max)
         u = self.in_proj(u.float())
         u = rearrange(u, 'b l d -> b d l')
@@ -578,6 +467,7 @@ class HyenaOperator(pl.LightningModule):
 
         y = self.out_proj(y)
         y = rearrange(y, 'b l d -> b (l d)')  # Flatten the output
+        print('y=', y)
         y = self.ff_layers(y)  # Classification using feed-forward layers
         return y
 
@@ -650,7 +540,7 @@ out_data = torch.zeros(labels.size(0), 3)
 out_data[torch.arange(labels.size(0)), labels] = 1
 
 # Assigning Values
-device = torch.device("cpu")
+device = torch.device("cuda")
 d_model = 100
 batch_size = 1000
 sequence_length = 2
@@ -658,25 +548,32 @@ train_ratio = 0.8
 
 
 # Initialize HyenaOperator model
-hyena_model = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
+hyena_model = HyenaOperator(d_model=d_model, l_max=sequence_length, order=2, dropout=0.0, filter_dropout=0.0)
+
+print( x_data[0:20] )
+print( hyena_model(x_data[0:20]) )
+xxx
+
+
 
 checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
 # initiate wandb logger
-wandb_logger = WandbLogger(project = 'lightning_model',log_model="all")
+# wandb_logger = WandbLogger(project = 'lightning_model',log_model="all")
 
 # Initialize Trainer and start training
 trainer = pl.Trainer(
     accelerator="auto",
     max_epochs=10,
-    logger = wandb_logger,
+    # logger = wandb_logger,
     log_every_n_steps=1,
 )
-
-wandb_logger.watch(hyena_model, log="gradients", log_freq=50, log_graph=True)
+# wandb_logger.watch(hyena_model, log="gradients", log_freq=50, log_graph=True)
 
 trainer.fit(hyena_model)
 trainer.test()
+
+print( hyena_model(x_data[0:20]) )
 
 xxx
 

@@ -38,6 +38,16 @@ out = model_mha.forward(x)
 
 # In[ ]:
 
+class MyReplicatorModule(pl.LightningModule):
+    # TODO
+    pass
+    # model = HyenaOperator(
+    #     d_model=d_model,
+    #     l_max=sequence_length,
+    #     order=i,
+    #     filter_order=64
+    # ).to(device)
+
 
 for i in [2,4,8,16,32,64,128]:
 
