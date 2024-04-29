@@ -1,3 +1,6 @@
+import sys
+sys.path.append('c:\\Study\\DS\\Classifier')
+
 from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
