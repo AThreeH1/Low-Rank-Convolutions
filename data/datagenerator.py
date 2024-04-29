@@ -1,3 +1,6 @@
+import random
+import numpy as np
+
 data = []
 
 for r in range(1000):
