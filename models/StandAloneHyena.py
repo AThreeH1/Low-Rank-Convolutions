@@ -213,7 +213,6 @@ class HyenaOperator(nn.Module):
         )
 
     def forward(self, u, *args, **kwargs):
-        ''' input shape: b l d'''
         l = u.size(-2)
         l_filter = min(l, self.l_max)
         u = self.in_proj(u)
