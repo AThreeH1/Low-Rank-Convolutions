@@ -1,13 +1,16 @@
 from utils.imports import *
 
 class FFN(nn.Module):
-    def __init__(self, layer_sizes):
+    def __init__(self):
         super(FFN, self).__init__()
-        layers = []
-        for i in range(len(layer_sizes) - 1):
-            layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
-            layers.append(nn.ReLU())
-        self.model = nn.Sequential(*layers[:-1])  # Exclude the last activation
+        self.fc1 = torch.nn.Linear(200, 128)
+        self.fc2 = torch.nn.Linear(128, 64)
+        self.fc3 = torch.nn.Linear(64, 64)
+        self.fc4 = torch.nn.Linear(64, 3)
 
     def forward(self, x):
-        return self.model(x)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = torch.softmax(self.fc4(x), dim=1)
+        return x
