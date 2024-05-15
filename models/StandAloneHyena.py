@@ -1,3 +1,13 @@
+import os
+import sys
+
+# Get the directory of the current script
+current_dir = os.path.dirname(__file__)
+
+# Append the parent directory to the system path
+parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
+sys.path.append(parent_dir)
+
 from utils.imports import *
 
 ### Hyena Hierarchy
