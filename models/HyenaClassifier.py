@@ -1,5 +1,7 @@
 import os
 import sys
+import torchinfo
+from torchinfo import summary
 
 # Get the directory of the current script
 current_dir = os.path.dirname(__file__)
@@ -42,7 +44,8 @@ class HyenaClassifier(pl.LightningModule):
     def forward(self,x):
         y = self.Hyena(x)
         y = x
-        z = rearrange(y, 'b l d -> b (l d)')
+        # z = rearrange(y, 'b l d -> b (l d)')
+        z = y[:,-1,:]
         out = self.FFN(z)
         return out
 
@@ -119,7 +122,7 @@ train_ratio = 0.8
 
 # Initialize HyenaOperator model
 ffn = FFN(sequence_length, dim)
-Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=2, dropout=0.0, filter_dropout=0.0)
+Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
 Model = HyenaClassifier(Hyena, ffn, x_data, labels)
 
 checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
@@ -132,11 +135,14 @@ else:
 
 # Initialize Trainer and start training
 trainer = pl.Trainer(
-    accelerator="cpu",
+    accelerator="gpu",
     max_epochs=11,
     logger = wandb_logger,
     log_every_n_steps=1,
+    default_root_dir = current_dir
 )
+
+summary(Model, input_size = x_data.size())
 
 if USE_WANDB:
     wandb_logger.watch(Model, log="gradients", log_freq=50, log_graph=True)
