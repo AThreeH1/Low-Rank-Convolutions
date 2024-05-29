@@ -18,8 +18,8 @@ def DataGenerate(net, sequence_length, dim):
 
 # l = length of signal
 # m = point selected at random at which the signal starts
-# d[] = dimensions for sinosuidal waves
-# sigs = signal dimension for waves to be classified
+# d[] = list of dimensions for sinosuidal waves
+# sigs = list of signal-dimension for waves to be classified
 # Cp = Coincedent signal point or number 
 # Ap = Any signal point or number
 # S1,2,3 = Signal Types

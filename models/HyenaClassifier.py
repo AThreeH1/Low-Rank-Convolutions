@@ -18,7 +18,7 @@ from data.datagenerator import DataGenerate
 
 Total_batches = 1000
 sequence_length = 500
-dim = 4
+dim = 2
 data = DataGenerate(Total_batches, sequence_length, dim)
 
 USE_WANDB = False
@@ -43,7 +43,6 @@ class HyenaClassifier(pl.LightningModule):
 
     def forward(self,x):
         y = self.Hyena(x)
-        y = x
         # z = rearrange(y, 'b l d -> b (l d)')
         z = y[:,-1,:]
         out = self.FFN(z)
@@ -107,21 +106,21 @@ class HyenaClassifier(pl.LightningModule):
     
 
 # Convert data into tensors
-x_datax = torch.tensor([[[a, b, c, d] for a, b, c, d in zip(idata[0], idata[1], idata[2], idata[3])] for idata in data])
+x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
 x_data = x_datax.permute(0, 1, 2)
 x_data = torch.tensor(x_data, dtype=torch.float32)
-labels = torch.tensor([label for _, _, _, _, label in data])
+labels = torch.tensor([data_point[-1] for data_point in data])
 
 Array_accuracy = []
 Actual_labels = []
 
 # Assigning Values
-d_model = 4
-batch_size = 1000
-train_ratio = 0.8
+d_model = dim
+# batch_size = 1000
+# train_ratio = 0.8
 
 # Initialize HyenaOperator model
-ffn = FFN(sequence_length, dim)
+ffn = FFN(dim)
 Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
 Model = HyenaClassifier(Hyena, ffn, x_data, labels)
 

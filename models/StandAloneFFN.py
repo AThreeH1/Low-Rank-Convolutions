@@ -11,9 +11,9 @@ sys.path.append(parent_dir)
 from utils.imports import *
 
 class FFN(nn.Module):
-    def __init__(self, sequence_length, dim):
+    def __init__(self, dim):
         super(FFN, self).__init__()
-        self.sequence_length = sequence_length
+        # self.sequence_length = sequence_length
         self.dim = dim
         self.fc1 = torch.nn.Linear(dim, 3)
         # self.fc2 = torch.nn.Linear(256, 128)
