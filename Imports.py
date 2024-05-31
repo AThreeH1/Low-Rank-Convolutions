@@ -1,18 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
-get_ipython().system('pip install einops')
-get_ipython().system('pip install lightning')
-get_ipython().system('pip install wandb')
-get_ipython().system('pip install -qqq wandb pytorch-lightning')
-
-
-# In[ ]:
-
-
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,6 +14,6 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.optim.lr_scheduler import StepLR
 from lightning.pytorch.callbacks import ModelCheckpoint
-
-wandb.login()
-
+from torch.utils.data import DataLoader, TensorDataset, Dataset, random_split
+import random
+import torch.fft
