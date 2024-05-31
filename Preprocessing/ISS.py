@@ -116,24 +116,24 @@ class LowRankModel(nn.Module):
 # model = LowRankModel().to(device)
 # print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-Total_batches = 1
-sequence_length = 100
-dim = 2
-data = DataGenerate(Total_batches, sequence_length, dim)
+# Total_batches = 1
+# sequence_length = 100
+# dim = 2
+# data = DataGenerate(Total_batches, sequence_length, dim)
 
-x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
-x_data = x_datax.permute(0, 2, 1)
-x_data = torch.tensor(x_data, dtype=torch.float32)
-labels = torch.tensor([data_point[-1] for data_point in data])
+# x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
+# x_data = x_datax.permute(0, 2, 1)
+# x_data = torch.tensor(x_data, dtype=torch.float32)
+# labels = torch.tensor([data_point[-1] for data_point in data])
 
-Arr_1 = ISS(x_data, Total_batches, 1)
-Arrf_1 = Arr_1[0][0] + Arr_1[0][2] + Arr_1[0][2] + Arr_1[0][3]
-Arr_2 = ISS(x_data, Total_batches, 2)
-Arrf_2 = Arr_2[0][0] + Arr_2[0][2] + Arr_2[0][2] + Arr_2[0][3]
+# Arr_1 = ISS(x_data, Total_batches, 1)
+# Arrf_1 = Arr_1[0][0] + Arr_1[0][2] + Arr_1[0][2] + Arr_1[0][3]
+# Arr_2 = ISS(x_data, Total_batches, 2)
+# Arrf_2 = Arr_2[0][0] + Arr_2[0][2] + Arr_2[0][2] + Arr_2[0][3]
 
-print(data[0][0])
-print(data[0][1])
-print(Arrf_1)
-print(Arrf_2)
+# print(data[0][0])
+# print(data[0][1])
+# print(Arrf_1)
+# print(Arrf_2)
 # LowRank = LowRankModel()
 # print(LowRank(x_data))
