@@ -146,9 +146,9 @@ trainer = pl.Trainer(
     default_root_dir = current_dir
 )
 
-print('a')
-summary(Model, input_size = x_data.size())
-print('e')
+# print('a')
+# summary(Model, input_size = x_data.size())
+# print('e')
 
 if USE_WANDB:
     wandb_logger.watch(Model, log="gradients", log_freq=50, log_graph=True)
@@ -158,10 +158,3 @@ trainer.test(Model)
 
 if USE_WANDB:
     wandb.finish()
-
-
-
-
-
-
-
