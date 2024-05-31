@@ -16,7 +16,22 @@ device = torch.device('cpu')
 
 # Implementing ISS
 def ISS(x_data, Total_batches, a):
+    '''Caculates the low-rank expansion of
+            < ISS_{s,t}, 12 > = ..
+                if a == 1
+            < ISS_{s,t}, 21 > = ..
+                if a == 2
+        Args:
+            x_data: shape (bs, 2, T)
+            Total_batches: int
+            a: int (1 or 2)
+        Returns:
+            out: list of 4 tensors
+    '''
     out = []
+    # TODO after writing a unit test for this (and it passes),
+    # - remove the loop
+    # - remove the Total_batches argument
     for j in range(Total_batches):
         D1, D2 = (x_data[j][0], x_data[j][1]) if a == 1 else (x_data[j][1], x_data[j][0])         
         T = len(D1) 
@@ -38,7 +53,58 @@ def ISS(x_data, Total_batches, a):
         out.append([ISS_sum, negated_Consicutive_Sum_D1, Consicutive_Sum_D2, ISS_D1])
     return out
 
+def brute_force_two_letter_ISS(x_data, w):
+    '''
+        For s < t
+            \sum_{s < r1 < r2 <= t} x^{(w_1)}_{r1} x^{(w_2)}_{r2}
+    
+    '''
+    bs, d, T = x_data.size()
+    tmp  = torch.cumsum(x_data[:,w[0]], dim=1)
+    tmp = torch.cat( [torch.zeros(bs, 1), tmp], dim=1 )[:,:-1]
+    tmp2 = torch.cumsum( tmp * x_data[:,w[1]], dim=1 )
+    tmp2 = torch.cat( [torch.zeros(bs, 1), tmp2], dim=1 )[:,:-1]
 
+    return tmp2
+
+def super_brute_force_two_letter_ISS(x_data, w):
+    '''
+        For 0 < t (in python indexing)
+            \sum_{-1 < r1 < r2 <= t} x^{(w_1)}_{r1} x^{(w_2)}_{r2}
+    '''
+    bs, d, T = x_data.size()
+    tmp = torch.zeros(bs, T)
+    for t in range(T):
+        for r1 in range(t):
+            for r2 in range(r1+1, t):
+                tmp[:, t] += x_data[:, w[0], r1] * x_data[:, w[1], r2]
+    return tmp
+
+def test_ISS():
+    torch.manual_seed(42)
+    X = torch.randn(1, 2, 5)
+    dX = torch.diff(X, dim=-1,prepend=torch.zeros(1,2,1))
+    # print('X=',X)
+    # print('dX=',dX)
+    ret = ISS( dX, 1, 2 )
+    a,b,c,d = ret[0]
+
+    ##
+    # k_{s,t} = a_s \otimes 1_t + b_s \otimes c_t + 1_s \otimes d_t
+    ##
+    T1 = torch.einsum('s,t->st', a, torch.ones(5) )
+    T2 = torch.einsum('s,t->st', b, c )
+    T3 = torch.einsum('s,t->st', torch.ones(5), d )
+    T = T1 + T2 + T3
+
+    # Test brute force:
+    ret = brute_force_two_letter_ISS(dX, [1, 0])
+    ret2 = super_brute_force_two_letter_ISS(dX, [1, 0])
+    assert torch.allclose(ret, ret2)
+
+    print(T[0,])
+    print( ret )
+    assert torch.allclose( T[0,], ret ) # TODO fails ..
 
 # Define the FNN class
 class FNNnew(nn.Module):
@@ -113,27 +179,33 @@ class LowRankModel(nn.Module):
 
         return torch.stack([torch.stack(batch) for batch in output_seq]).to(device)
 
-# model = LowRankModel().to(device)
-# print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+# TODO try to find a way to (unit)-test this
 
-# Total_batches = 1
-# sequence_length = 100
-# dim = 2
-# data = DataGenerate(Total_batches, sequence_length, dim)
+#model = LowRankModel().to(device)
+#print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+#
+#Total_batches = 1
+#sequence_length = 100
+#dim = 2
+#data = DataGenerate(Total_batches, sequence_length, dim)
+#
+#x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
+#x_data = x_datax.permute(0, 2, 1)
+#x_data = torch.tensor(x_data, dtype=torch.float32)
+#labels = torch.tensor([data_point[-1] for data_point in data])
+#
+#Arr_1 = ISS(x_data, Total_batches, 1)
+#Arrf_1 = Arr_1[0][0] + Arr_1[0][2] + Arr_1[0][2] + Arr_1[0][3]
+#Arr_2 = ISS(x_data, Total_batches, 2)
+#Arrf_2 = Arr_2[0][0] + Arr_2[0][2] + Arr_2[0][2] + Arr_2[0][3]
+#
+## print(data[0][0])
+## print(data[0][1])
+#print('Arrf_1=', Arrf_1)
+## print(Arrf_2)
+#LowRank = LowRankModel()
+#print(LowRank(x_data))
 
-# x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
-# x_data = x_datax.permute(0, 2, 1)
-# x_data = torch.tensor(x_data, dtype=torch.float32)
-# labels = torch.tensor([data_point[-1] for data_point in data])
-
-# Arr_1 = ISS(x_data, Total_batches, 1)
-# Arrf_1 = Arr_1[0][0] + Arr_1[0][2] + Arr_1[0][2] + Arr_1[0][3]
-# Arr_2 = ISS(x_data, Total_batches, 2)
-# Arrf_2 = Arr_2[0][0] + Arr_2[0][2] + Arr_2[0][2] + Arr_2[0][3]
-
-# print(data[0][0])
-# print(data[0][1])
-# print(Arrf_1)
-# print(Arrf_2)
-# LowRank = LowRankModel()
-# print(LowRank(x_data))
+# if main
+if __name__ == '__main__':
+    test_ISS()
