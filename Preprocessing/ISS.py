@@ -12,7 +12,7 @@ sys.path.append(parent_dir)
 from utils.imports import *
 from data.datagenerator import DataGenerate
 
-device = torch.device('cpu')
+device = torch.device('cuda')
 
 # Implementing ISS
 def ISS(x_data, a):
@@ -51,21 +51,22 @@ def ISS(x_data, a):
         negated_Consicutive_Sum_D1 = -Consicutive_Sum_D1
         ISS_sum = ISS_D2 + ISS_QS
         out.append([ISS_sum, negated_Consicutive_Sum_D1, Consicutive_Sum_D2, ISS_D1])
+    # out = [[torch.tensor([1,1,1,1,1,1,1,1,1,1,1]), torch.tensor([1,1,1,1,1,1,1,1,1,1,1]), torch.tensor([1,1,1,1,1,1,1,1,1,1,1]), torch.tensor([1,1,1,1,1,1,1,1,1,1,1])]]
     return out
 
-# def brute_force_two_letter_ISS(x_data, w):
-#     '''
-#         For s < t
-#             \sum_{s < r1 < r2 <= t} x^{(w_1)}_{r1} x^{(w_2)}_{r2}
+def brute_force_two_letter_ISS(x_data, w):
+    '''
+        For s < t
+            \sum_{s < r1 < r2 <= t} x^{(w_1)}_{r1} x^{(w_2)}_{r2}
     
-#     '''
-#     bs, d, T = x_data.size()
-#     tmp  = torch.cumsum(x_data[:,w[0]], dim=1)
-#     tmp = torch.cat( [torch.zeros(bs, 1), tmp], dim=1 )[:,:-1]
-#     tmp2 = torch.cumsum( tmp * x_data[:,w[1]], dim=1 )
-#     tmp2 = torch.cat( [torch.zeros(bs, 1), tmp2], dim=1 )[:,:-1]
+    '''
+    bs, d, T = x_data.size()
+    tmp  = torch.cumsum(x_data[:,w[0]], dim=1)
+    tmp = torch.cat( [torch.zeros(bs, 1), tmp], dim=1 )[:,:-1]
+    tmp2 = torch.cumsum( tmp * x_data[:,w[1]], dim=1 )
+    tmp2 = torch.cat( [torch.zeros(bs, 1), tmp2], dim=1 )[:,:-1]
 
-#     return tmp2
+    return tmp2
 
 def super_brute_force_two_letter_ISS(x_data, w):
     '''
@@ -80,27 +81,20 @@ def super_brute_force_two_letter_ISS(x_data, w):
                 tmp[:, t] += x_data[:, w[0], r1] * x_data[:, w[1], r2]
     return tmp
 
-def test_ISS():
-    torch.manual_seed(42)
-    X = torch.randn(1, 2, 10)
-    dX = torch.diff(X, dim=-1,prepend=torch.zeros(1,2,1))
-    ret = ISS( dX, 2 )
-    a,b,c,d = ret[0]
+# Set the base seed
+base_seed = 42
 
-    ##
-    # k_{s,t} = a_s \otimes 1_t + b_s \otimes c_t + 1_s \otimes d_t
-    ##
+# Set the seed of the model
+def set_seed(model, seed=base_seed):
+    torch.manual_seed(seed)  # Set the global seed for reproducibility
+    model.apply(set_seed_module)
 
-    retF = torch.zeros(1, 6)
-    for i in range(4, dX.size(2)):
-        retF[0][i-4] = (a[2] + b[2] * c[i] + d[i])
-    # retF = d[:-1]
-    # Test brute force:
-    ret1 = brute_force_two_letter_ISS(dX, [1, 0])
-    ret2 = super_brute_force_two_letter_ISS(dX, [1, 0])
-    ret2 = ret2[:, 4:]
-    # assert torch.allclose(ret1, ret2)
-    assert torch.allclose( retF, ret2 ) 
+# Initialize the weights and biases of the module
+def set_seed_module(module):
+    if isinstance(module, nn.Linear):
+        torch.manual_seed(base_seed)  # Reset the seed for each module
+        module.weight.data.normal_(mean=0.0, std=0.01)
+        module.bias.data.fill_(0.0)
 
 # Define the FNN class
 class FNNnew(nn.Module):
@@ -117,7 +111,7 @@ class FNNnew(nn.Module):
 # Function to perform convolution
 def convolve_sequences(h_fft, f_fft):
     Y = h_fft * f_fft
-    y = torch.fft.ifft(Y, dim=0)
+    y = torch.fft.ifft(Y, dim=-1)
     return y.real
 
 # Define the LowRankModel class
@@ -127,60 +121,167 @@ class LowRankModel(nn.Module):
         
         # Initialize the FFN models 
         self.f = FNNnew()
+        set_seed(self.f)
         self.g = FNNnew()
+        set_seed(self.g)
         self.f_prime = FNNnew()
+        set_seed(self.f_prime)
         self.g_prime = FNNnew()
+        set_seed(self.g_prime)
     
     def forward(self, x_data):
         T = x_data.size(2)
         bs = x_data.size(0)
-
-        output_seq = [[] for _ in range(bs)]
-
         f_arr = self.f(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
         f_prime_arr = self.f_prime(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
         g_arr = self.g(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
         g_prime_arr = self.g_prime(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
-
+        
         H_f_arr = torch.fft.fft(f_arr, dim=0)
         H_f_prime_arr = torch.fft.fft(f_prime_arr, dim=0)
         H_g_arr = torch.fft.fft(g_arr, dim=0)
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
-        H_ones = torch.fft.fft(torch.ones(T, device=device), dim=0)
+        H_ones = torch.fft.fft(torch.ones(T, device=device), dim=0).reshape(1, T)
+        
+        # H_f_arr = torch.nn.functional.pad(H_f_arr, (T, T))
+        # H_f_prime_arr = torch.nn.functional.pad(H_f_prime_arr, (T, T))
+        # H_g_arr = torch.nn.functional.pad(H_g_arr, (T, T))
+        # H_g_prime_arr = torch.nn.functional.pad(H_g_prime_arr, (T, T))
+        # H_ones = torch.nn.functional.pad(H_ones, (T, T))
+
+        output_seq = torch.zeros((bs, 2, T), device=device, dtype=torch.complex64)
 
         for k in range(2):
-            Array_LowRank = ISS(x_data, bs, a=k)
+            Array_LowRank = ISS(x_data, a=k)
 
-            for j in range(bs):
-                Array_LowRank[j] = [tensor.to(device) for tensor in Array_LowRank[j]]
-                ISS_sum_fft = torch.fft.fft(Array_LowRank[j][0], dim=0)
-                Consicutive_Sum_D1_fft = torch.fft.fft(Array_LowRank[j][1], dim=0)
-                Consicutive_Sum_D2_fft = torch.fft.fft(Array_LowRank[j][2], dim=0)
-                ISS_D1_fft = torch.fft.fft(Array_LowRank[j][3], dim=0)
+            # Convert list of lists to tensor for batch processing
+            ISS_sum = torch.stack([item[0] for item in Array_LowRank], dim=0).to(device)[:,1:]
+            Consicutive_Sum_D1 = torch.stack([item[1] for item in Array_LowRank], dim=0).to(device)[:,1:]
+            Consicutive_Sum_D2 = torch.stack([item[2] for item in Array_LowRank], dim=0).to(device)[:,1:]
+            ISS_D1 = torch.stack([item[3] for item in Array_LowRank], dim=0).to(device)[:,1:]
+            
+            # Apply FFT to all elements in the batch
+            ISS_sum_fft = torch.fft.fft(ISS_sum, dim=-1)
+            Consicutive_Sum_D1_fft = torch.fft.fft(Consicutive_Sum_D1, dim=-1)
+            Consicutive_Sum_D2_fft = torch.fft.fft(Consicutive_Sum_D2, dim=-1)
+            ISS_D1_fft = torch.fft.fft(ISS_D1, dim=-1)
+            
+            # ISS_sum_fft = torch.nn.functional.pad(ISS_sum_fft, (T, T))
+            # Consicutive_Sum_D1_fft = torch.nn.functional.pad(Consicutive_Sum_D1_fft, (T, T))
+            # Consicutive_Sum_D2_fft = torch.nn.functional.pad(Consicutive_Sum_D2_fft, (T, T))
+            # ISS_D1_fft = torch.nn.functional.pad(ISS_D1_fft, (T, T))
 
-                AA = convolve_sequences(H_f_arr, ISS_sum_fft)
-                AB = convolve_sequences(H_g_arr, H_ones)
-                BA = convolve_sequences(H_f_prime_arr, ISS_sum_fft)
-                BB = convolve_sequences(H_g_prime_arr, H_ones)
-                CA = convolve_sequences(H_f_arr, Consicutive_Sum_D1_fft)
-                CB = convolve_sequences(H_g_arr, Consicutive_Sum_D2_fft)
-                DA = convolve_sequences(H_f_prime_arr, Consicutive_Sum_D1_fft)
-                DB = convolve_sequences(H_g_prime_arr, Consicutive_Sum_D2_fft)
-                EA = convolve_sequences(H_f_arr, H_ones)
-                EB = convolve_sequences(H_g_arr, ISS_D1_fft)
-                FA = convolve_sequences(H_f_prime_arr, H_ones)
-                FB = convolve_sequences(H_g_prime_arr, ISS_D1_fft)
+            # Perform batched convolution and accumulate results
+            AA = convolve_sequences(H_f_arr, ISS_sum_fft)
+            AB = convolve_sequences(H_g_arr, H_ones)
+            BA = convolve_sequences(H_f_prime_arr, ISS_sum_fft)
+            BB = convolve_sequences(H_g_prime_arr, H_ones)
+            CA = convolve_sequences(H_f_arr, Consicutive_Sum_D1_fft)
+            CB = convolve_sequences(H_g_arr, Consicutive_Sum_D2_fft)
+            DA = convolve_sequences(H_f_prime_arr, Consicutive_Sum_D1_fft)
+            DB = convolve_sequences(H_g_prime_arr, Consicutive_Sum_D2_fft)
+            EA = convolve_sequences(H_f_arr, H_ones)
+            EB = convolve_sequences(H_g_arr, ISS_D1_fft)
+            FA = convolve_sequences(H_f_prime_arr, H_ones)
+            FB = convolve_sequences(H_g_prime_arr, ISS_D1_fft)
+            output_seq[:, k, :] = (AA * AB) + (BA * BB) + (CA * CB) + (DA * DB) + (EA * EB) + (FA * FB)
 
-                output_seq[j].append((AA * AB) + (BA * BB) + (CA * CB) + (DA * DB) + (EA * EB) + (FA * FB))
+        return output_seq.real
 
-        return torch.stack([torch.stack(batch) for batch in output_seq]).to(device)
+def h(T_s, T_s_prime, f, g, f_prime, g_prime):
+
+    T_s = torch.tensor([[T_s]], dtype=torch.float32) 
+    T_s_prime = torch.tensor([[T_s_prime]], dtype=torch.float32)  
+    
+    # Compute f(T-s), g(T-s'), f'(T-s), g'(T-s')
+    f_T_s = f(T_s)
+    g_T_s_prime = g(T_s_prime)
+    f_prime_T_s = f_prime(T_s)
+    g_prime_T_s_prime = g_prime(T_s_prime)
+    
+    # Compute h(T-s, T-s') = f(T-s)g(T-s') + f'(T-s)g'(T-s')
+    h_value = f_T_s * g_T_s_prime + f_prime_T_s * g_prime_T_s_prime
+    # print('A', f_T_s , g_T_s_prime, 'B',f_prime_T_s , g_prime_T_s_prime)
+    return h_value.item()
+
+def super_brute_force_LowRank(x_data):
+    f = FNNnew()
+    set_seed(f)
+    g = FNNnew()
+    set_seed(g)
+    f_prime = FNNnew()
+    set_seed(f_prime)
+    g_prime = FNNnew()
+    set_seed(g_prime)
+
+    T = x_data.size(2)
+    out = torch.zeros(x_data.size())
+
+    for k in range(2):
+        for t in range(T):
+            total_sum = 0
+            for s in range(1, T+1):
+                for s_prime in range(1, T+1):
+                    if t>= s-1 and t>=s_prime-1:
+                        h_value = h(t-s+1, t-s_prime+1, f, g, f_prime, g_prime)
+                        Array = ISS(x_data, k) 
+                        Z = Array[0][0][s] + Array[0][1][s]*Array[0][2][s_prime] + Array[0][3][s_prime]
+                        total_sum += h_value * Z
+                    if t< s-1 and t<s_prime-1:
+                        h_value = h(T+(t-s+1), T+(t-s_prime+1), f, g, f_prime, g_prime)
+                        Array = ISS(x_data, k) 
+                        Z = Array[0][0][s] + Array[0][1][s]*Array[0][2][s_prime] + Array[0][3][s_prime]
+                        total_sum += h_value * Z
+                    if t>= s-1 and t<s_prime-1:
+                        h_value = h(t-s+1, T+(t-s_prime+1), f, g, f_prime, g_prime)
+                        Array = ISS(x_data, k) 
+                        Z = Array[0][0][s] + Array[0][1][s]*Array[0][2][s_prime] + Array[0][3][s_prime]
+                        total_sum += h_value * Z
+                    if t< s-1 and t>=s_prime-1:
+                        h_value = h(T+(t-s+1), t-s_prime+1, f, g, f_prime, g_prime)
+                        Array = ISS(x_data, k) 
+                        Z = Array[0][0][s] + Array[0][1][s]*Array[0][2][s_prime] + Array[0][3][s_prime]
+                        total_sum += h_value * Z
+            # Store the output
+            out[0][k][t] = total_sum
+    return out
+
+def test_ISS():
+    torch.manual_seed(42)
+    X = torch.randn(1, 2, 10)
+    dX = torch.diff(X, dim=-1,prepend=torch.zeros(1,2,1))
+    # print(dX)
+    # dX = torch.tensor([[[1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1]]])
+    ret = ISS( dX, 2 )
+    a,b,c,d = ret[0]
+
+    ##
+    # k_{s,t} = a_s \otimes 1_t + b_s \otimes c_t + 1_s \otimes d_t
+    ##
+
+    retF = torch.zeros(1, 6)
+    for i in range(4, dX.size(2)):
+        retF[0][i-4] = (a[2] + b[2] * c[i] + d[i])
+    # retF = d[:-1]
+
+    # Test brute force:
+    ret1 = brute_force_two_letter_ISS(dX, [1, 0])
+    ret2 = super_brute_force_two_letter_ISS(dX, [1, 0])
+    ret2 = ret2[:, 4:]
+    # assert torch.allclose(ret1, ret2)
+    assert torch.allclose( retF, ret2 ) 
+
+    model = LowRankModel()   
+    LowR1 = model(dX)
+    LowR2 = super_brute_force_LowRank(dX)
+    assert torch.allclose(LowR1, LowR2, atol=10**-3)
 
 # TODO try to find a way to (unit)-test this
 
 #model = LowRankModel().to(device)
 #print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-# Total_batches = 1
+# Total_batches = 5
 # sequence_length = 100
 # dim = 2
 # data = DataGenerate(Total_batches, sequence_length, dim)
@@ -199,8 +300,9 @@ class LowRankModel(nn.Module):
 ## print(data[0][1])
 #print('Arrf_1=', Arrf_1)
 ## print(Arrf_2)
-#LowRank = LowRankModel()
-#print(LowRank(x_data))
+
+# LowRank = LowRankModel()
+# print(LowRank(x_data))
 
 # if main
 if __name__ == '__main__':

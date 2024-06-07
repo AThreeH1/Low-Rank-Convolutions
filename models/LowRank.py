@@ -213,3 +213,43 @@ def LowRank(x_data):
 # time2 = time2_end - time2_start
 # print("Time by T^2:", time1)
 # print("Time by TlogT:", time2)
+
+
+import torch
+
+# Define the input arrays
+A = torch.tensor([1, 1, 1, 1, 2], dtype=torch.float32)
+B = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32)
+
+# Ensure the inputs are on the correct device
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+A = A.to(device)
+B = B.to(device)
+
+# Get the length of the inputs
+N = A.size(0)
+M = B.size(0)
+
+# Calculate the size for zero-padding
+size = N + M - 1
+
+# Pad B to the size of A
+B_padded = torch.nn.functional.pad(B, (0, size - M))
+
+# Perform FFT
+A_fft = torch.fft.fft(A, n=size)
+B_fft = torch.fft.fft(B_padded, n=size)
+
+# Pointwise multiplication in the frequency domain
+C_fft = A_fft * B_fft
+
+# Perform inverse FFT to get the convolution result
+C = torch.fft.ifft(C_fft)
+
+# Extract the real part and trim to the original size (same length as A)
+result = C.real[:N]
+
+print(result)
+
+
+
