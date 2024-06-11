@@ -22,8 +22,8 @@ class FFN(pl.LightningModule):
         super(FFN, self).__init__()
         self.x_data = input
         self.target = target
-        self.fc1 = nn.Linear(input_dim, 256)
-        self.fc2 = nn.Linear(256, 128)
+        self.fc1 = nn.Linear(input_dim, 512)
+        self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, 32)
         self.fc5 = nn.Linear(32, 3)
@@ -106,12 +106,13 @@ x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_p
 x_data = x_datax.permute(0, 2, 1)
 x_data = torch.tensor(x_data, dtype=torch.float32)
 labels = torch.tensor([data_point[-1] for data_point in data])
+words = 8
 
 Array_accuracy = []
 Actual_labels = []
 
-model = LowRankModel()
-input_dim = 2*x_data.size(-1)
+model = LowRankModel(words)
+input_dim = words*x_data.size(-1)
 
 FFNmodel = FFN(input_dim, x_data, labels, model)
 
@@ -126,3 +127,6 @@ trainer = pl.Trainer(
 
 trainer.fit(FFNmodel)
 trainer.test(FFNmodel)
+
+
+

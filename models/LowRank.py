@@ -30,14 +30,10 @@ def ISS(x_data, a):
     bs = x_data.size(0)
     out = []
 
-    if a == 0:
-        D1, D2 = x_data[:, 1, :], x_data[:, 0, :]
-    if a == 1:
-        D1, D2 = x_data[:, 0, :], x_data[:, 1, :]
-    if a == 2:
-        D1, D2 = x_data[:, 1, :]**2, x_data[:, 1, :]
-    if a == 3:
-        D1, D2 = x_data[:, 0, :], x_data[:, 1, :]**2
+    if a%2 == 0:
+        D1, D2 = x_data[:, 1, :]**((a/2) + 1), x_data[:, 0, :]
+    if a%2 == 1:
+        D1, D2 = x_data[:, 0, :], x_data[:, 1, :]**((a+1)/2)
 
     T = D1.size(1) + 1
 
@@ -110,7 +106,7 @@ def convolve_sequences(h_fft, f_fft):
 
 # Define the LowRankModel class
 class LowRankModel(nn.Module):
-    def __init__(self):
+    def __init__(self, words):
         super(LowRankModel, self).__init__()
         
         # Initialize the FFN models 
@@ -122,8 +118,10 @@ class LowRankModel(nn.Module):
         set_seed(self.f_prime)
         self.g_prime = FNNnew()
         set_seed(self.g_prime)
-    
+        self.words = words
+
     def forward(self, x_data):
+        words = self.words
         T = x_data.size(2)
         bs = x_data.size(0)
         f_arr = self.f(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
@@ -143,9 +141,9 @@ class LowRankModel(nn.Module):
         # H_g_prime_arr = torch.nn.functional.pad(H_g_prime_arr, (T, T))
         # H_ones = torch.nn.functional.pad(H_ones, (T, T))
 
-        output_seq = torch.zeros((bs, 4, T), device=device, dtype=torch.complex64)
+        output_seq = torch.zeros((bs, words, T), device=device, dtype=torch.complex64)
 
-        for k in range(4):
+        for k in range(words):
             Array_LowRank = ISS(x_data, a=k)
 
             # Convert list of lists to tensor for batch processing
@@ -199,7 +197,7 @@ def h(T_s, T_s_prime, f, g, f_prime, g_prime):
     # print('A', f_T_s , g_T_s_prime, 'B',f_prime_T_s , g_prime_T_s_prime)
     return h_value.item()
 
-def super_brute_force_LowRank(x_data):
+def super_brute_force_LowRank(x_data, words):
     f = FNNnew()
     set_seed(f)
     g = FNNnew()
@@ -208,13 +206,12 @@ def super_brute_force_LowRank(x_data):
     set_seed(f_prime)
     g_prime = FNNnew()
     set_seed(g_prime)
-
     bs,_,T = x_data.size()
-    out = torch.zeros([3,4,10], device=device)
+    out = torch.zeros([3, words, 10], device=device)
 
 
     for bs in range(bs):
-        for k in range(4):
+        for k in range(words):
             for t in range(T):
                 total_sum = 0
                 for s in range(1, T+1):
@@ -270,10 +267,12 @@ def test_ISS():
     # assert torch.allclose(ret1, ret2)
     assert torch.allclose( retF, ret2 ) 
 
-    model = LowRankModel()   
+    words = 4
+    model = LowRankModel(words)   
     LowR1 = model(dX)
+
     # print('LowR1 = ', LowR1)
-    LowR2 = super_brute_force_LowRank(dX)
+    LowR2 = super_brute_force_LowRank(dX, words)
 
     # print('LowR2 = ', LowR2)
     assert torch.allclose(LowR1, LowR2, atol=10**-3)
