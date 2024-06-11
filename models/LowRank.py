@@ -30,7 +30,15 @@ def ISS(x_data, a):
     bs = x_data.size(0)
     out = []
 
-    D1, D2 = (x_data[:, 0, :], x_data[:, 1, :]) if a == 1 else (x_data[:, 1, :], x_data[:, 0, :])
+    if a == 0:
+        D1, D2 = x_data[:, 1, :], x_data[:, 0, :]
+    if a == 1:
+        D1, D2 = x_data[:, 0, :], x_data[:, 1, :]
+    if a == 2:
+        D1, D2 = x_data[:, 1, :]**2, x_data[:, 1, :]
+    if a == 3:
+        D1, D2 = x_data[:, 0, :], x_data[:, 1, :]**2
+
     T = D1.size(1) + 1
 
     Consicutive_Sum_D1 = torch.cat([torch.zeros(bs, 1, device=D1.device), torch.cumsum(D1, dim=1)], dim=1)
@@ -135,9 +143,9 @@ class LowRankModel(nn.Module):
         # H_g_prime_arr = torch.nn.functional.pad(H_g_prime_arr, (T, T))
         # H_ones = torch.nn.functional.pad(H_ones, (T, T))
 
-        output_seq = torch.zeros((bs, 2, T), device=device, dtype=torch.complex64)
+        output_seq = torch.zeros((bs, 4, T), device=device, dtype=torch.complex64)
 
-        for k in range(2):
+        for k in range(4):
             Array_LowRank = ISS(x_data, a=k)
 
             # Convert list of lists to tensor for batch processing
@@ -202,10 +210,11 @@ def super_brute_force_LowRank(x_data):
     set_seed(g_prime)
 
     bs,_,T = x_data.size()
-    out = torch.zeros(x_data.size(), device=device)
+    out = torch.zeros([3,4,10], device=device)
+
 
     for bs in range(bs):
-        for k in range(2):
+        for k in range(4):
             for t in range(T):
                 total_sum = 0
                 for s in range(1, T+1):
@@ -239,7 +248,7 @@ def test_ISS():
     X = torch.randn(3, 2, 10)
     dX = torch.diff(X, dim=-1,prepend=torch.zeros(3,2,1))
     # dX = torch.tensor([[[1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1]]])
-    ret = ISS( dX, 2 )
+    ret = ISS( dX, 0 )
     # print(ret)
     a,b,c,d = ret[0]
     ##

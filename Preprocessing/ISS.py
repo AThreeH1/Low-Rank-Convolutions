@@ -17,7 +17,6 @@ from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate
 from models.LowRank import LowRankModel
 
-
 class FFN(pl.LightningModule):
     def __init__(self, input_dim, input, target, model):
         super(FFN, self).__init__()
