@@ -15,7 +15,8 @@ from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate
-from Preprocessing.ISS import LowRankModel
+# from Preprocessing.ISS import LowRankModel
+from models.LowRank import LowRankModel
 
 Total_batches = 1000
 sequence_length = 500
@@ -28,7 +29,6 @@ if USE_WANDB:
     wandb.login(key = ['7e169996e30d15f253a5f1d92ef090f2f3b948c4'])
 
 ### FunctionClassifier
-
 class ISSHClassifier(pl.LightningModule):
     def __init__(
             self,
