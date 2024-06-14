@@ -251,7 +251,7 @@ def test_ISS():
     ##
     # k_{s,t} = a_s \otimes 1_t + b_s \otimes c_t + 1_s \otimes d_t
     ##
-
+    # print(ret)
     retF = torch.zeros(3, 6)
     for i in range(4, dX.size(2)):
         for j in range(a.size(0)):

@@ -15,27 +15,28 @@ from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate
-from models.LowRank import LowRankModel
+from models.LowRank import ISS
+from data.datagenerator import SimpleDataGenerate
 
 class FFN(pl.LightningModule):
-    def __init__(self, input_dim, input, target, model):
+    def __init__(self, input_dim, input, target):
         super(FFN, self).__init__()
         self.x_data = input
         self.target = target
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, 32)
-        self.fc5 = nn.Linear(32, 3)
+        self.fc1 = nn.Linear(input_dim, 5)
+        self.fc2 = nn.Linear(5, 3)
+        # self.fc3 = nn.Linear(128, 64)
+        # self.fc4 = nn.Linear(64, 32)
+        # self.fc5 = nn.Linear(32, 3)
 
     def forward(self, x):
-        y = model(x)
-        x = rearrange(y, 'b l d -> b (l d)')
+        # y = model(x)
+        # x = rearrange(y, 'b l d -> b (l d)')
         x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = torch.relu(self.fc3(x))
-        x = torch.relu(self.fc4(x))
-        x = self.fc5(x)
+        # x = torch.relu(self.fc2(x))
+        # x = torch.relu(self.fc3(x))
+        # x = torch.relu(self.fc4(x))
+        x = self.fc2(x)
         return x
 
     def prepare_data(self):
@@ -95,26 +96,31 @@ class FFN(pl.LightningModule):
 
         return {'test_accuracy': accuracy}
 
-
 Total_batches = 1000
-sequence_length = 500
+sequence_length = 100
 dim = 2
-data = DataGenerate(Total_batches, sequence_length, dim)
-
+# data = DataGenerate(Total_batches, sequence_length, dim)
+data = SimpleDataGenerate(Total_batches, sequence_length)
 
 x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
 x_data = x_datax.permute(0, 2, 1)
 x_data = torch.tensor(x_data, dtype=torch.float32)
 labels = torch.tensor([data_point[-1] for data_point in data])
-words = 8
+words = 2
+
+a, b, c = x_data.size()
+x = torch.zeros([a, words])
+print(x)
+for i in range(1):
+    x[:,i] = ISS(x_data, i)[-1][-1][:,-1:].view(-1)
 
 Array_accuracy = []
 Actual_labels = []
 
-model = LowRankModel(words)
-input_dim = words*x_data.size(-1)
+# model = LowRankModel(words)
+input_dim = words
 
-FFNmodel = FFN(input_dim, x_data, labels, model)
+FFNmodel = FFN(input_dim, x, labels)
 
 checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
