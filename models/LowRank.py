@@ -120,7 +120,7 @@ class LowRankModel(nn.Module):
         super(LowRankModel, self).__init__()
         
         # Initialize the FFN models 
-        self.f = FNNnew()
+        self.f = FNNnew().to(device)
         # set_seed(self.f)
         self.g = FNNnew()
         # set_seed(self.g)
@@ -134,10 +134,10 @@ class LowRankModel(nn.Module):
         words = self.words
         T = x_data.size(2)
         bs = x_data.size(0)
-        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze().flip(0)
-        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze().flip(0)
-        g_arr = self.g(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
-        g_prime_arr = self.g_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze()       
+        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze().flip(0)
+        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze().flip(0)
+        g_arr = self.g(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze()
+        g_prime_arr = self.g_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze()       
         
         H_f_arr = torch.fft.fft(f_arr, dim=0)
         H_f_prime_arr = torch.fft.fft(f_prime_arr, dim=0)
@@ -270,8 +270,8 @@ def test_ISS():
     # retF = d[:-1]
 
     # Test brute force:
-    ret2 = super_brute_force_two_letter_ISS(dX, [1, 0])
-    ret2 = ret2[:, 4:]
+    # ret2 = super_brute_force_two_letter_ISS(dX, [1, 0])
+    # ret2 = ret2[:, 4:]
     # print(retF, 'RetF')
     # print(ret2, 'ret2')
     # assert torch.allclose(ret1, ret2)
