@@ -21,7 +21,7 @@ from data.datagenerator import SimpleDataGenerate
 class FFN(pl.LightningModule):
     def __init__(self, input_dim, input, target):
         super(FFN, self).__init__()
-        self.x_data = input
+        self.x_input = input
         self.target = target
         self.fc1 = nn.Linear(input_dim, 5)
         self.fc2 = nn.Linear(5, 3)
@@ -40,7 +40,7 @@ class FFN(pl.LightningModule):
         return x
 
     def prepare_data(self):
-        total_dataset = TensorDataset(self.x_data, self.target)
+        total_dataset = TensorDataset(self.x_input, self.target)
         train_size = int(0.8 * len(total_dataset))
         test_size = len(total_dataset) - train_size
         self.train_dataset, self.test_dataset = random_split(total_dataset, [train_size, test_size])
@@ -99,8 +99,8 @@ class FFN(pl.LightningModule):
 Total_batches = 1000
 sequence_length = 100
 dim = 2
-# data = DataGenerate(Total_batches, sequence_length, dim)
-data = SimpleDataGenerate(Total_batches, sequence_length)
+data = DataGenerate(Total_batches, sequence_length, dim)
+# data = SimpleDataGenerate(Total_batches, sequence_length)
 
 x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
 x_data = x_datax.permute(0, 2, 1)
@@ -108,18 +108,19 @@ x_data = torch.tensor(x_data, dtype=torch.float32)
 labels = torch.tensor([data_point[-1] for data_point in data])
 words = 2
 
-a, b, c = x_data.size()
-x = torch.zeros([a, words])
-print(x)
-for i in range(1):
-    x[:,i] = ISS(x_data, i)[-1][-1][:,-1:].view(-1)
+bs, b, c = x_data.size()
+x = torch.zeros([bs, words])
+
+for i in range(words):
+    x[:, i] = ISS(x_data, i)[-1][-1][:,-1:].view(-1)
 
 Array_accuracy = []
 Actual_labels = []
 
 # model = LowRankModel(words)
 input_dim = words
-
+# print(x)
+# print(labels)
 FFNmodel = FFN(input_dim, x, labels)
 
 checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')

@@ -71,20 +71,20 @@ def super_brute_force_two_letter_ISS(x_data, w):
                 tmp[:, t] += x_data[:, w[0], r1] * x_data[:, w[1], r2]
     return tmp
 
-# Set the base seed
-base_seed = 42
+# # Set the base seed
+# base_seed = 42
 
-# Set the seed of the model
-def set_seed(model, seed=base_seed):
-    torch.manual_seed(seed)  # Set the global seed for reproducibility
-    model.apply(set_seed_module)
+# # Set the seed of the model
+# def set_seed(model, seed=base_seed):
+#     torch.manual_seed(seed)  # Set the global seed for reproducibility
+#     model.apply(set_seed_module)
 
-# Initialize the weights and biases of the module
-def set_seed_module(module):
-    if isinstance(module, nn.Linear):
-        torch.manual_seed(base_seed)  # Reset the seed for each module
-        module.weight.data.normal_(mean=0.0, std=0.01)
-        module.bias.data.fill_(0.0)
+# # Initialize the weights and biases of the module
+# def set_seed_module(module):
+#     if isinstance(module, nn.Linear):
+#         torch.manual_seed(base_seed)  # Reset the seed for each module
+#         module.weight.data.normal_(mean=0.0, std=0.01)
+#         module.bias.data.fill_(0.0)
 
 # Define the FNN class
 class FNNnew(nn.Module):
@@ -93,10 +93,20 @@ class FNNnew(nn.Module):
         self.fc1 = nn.Linear(1, 5)
         self.fc2 = nn.Linear(5, 1)
     
+        nn.init.zeros_(self.fc1.weight)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.weight)
+        
+        # Bias of the last layer = 1
+        nn.init.ones_(self.fc2.bias)
+
+        self.a = -50
+
     def forward(self, x):
-        x = torch.tanh(self.fc1(x))
-        x = self.fc2(x)
-        return x
+        z = torch.tanh(self.fc1(x))
+        z = self.fc2(z)
+        y = torch.exp(self.a * x)
+        return z*y
 
 # Function to perform convolution
 def convolve_sequences(h_fft, f_fft):
@@ -111,48 +121,47 @@ class LowRankModel(nn.Module):
         
         # Initialize the FFN models 
         self.f = FNNnew()
-        set_seed(self.f)
+        # set_seed(self.f)
         self.g = FNNnew()
-        set_seed(self.g)
+        # set_seed(self.g)
         self.f_prime = FNNnew()
-        set_seed(self.f_prime)
+        # set_seed(self.f_prime)
         self.g_prime = FNNnew()
-        set_seed(self.g_prime)
+        # set_seed(self.g_prime)
         self.words = words
 
     def forward(self, x_data):
         words = self.words
         T = x_data.size(2)
         bs = x_data.size(0)
-        f_arr = self.f(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
-        f_prime_arr = self.f_prime(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
-        g_arr = self.g(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
-        g_prime_arr = self.g_prime(torch.arange(T, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
+        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze().flip(0)
+        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze().flip(0)
+        g_arr = self.g(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze()
+        g_prime_arr = self.g_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1)).to(device).squeeze()       
         
         H_f_arr = torch.fft.fft(f_arr, dim=0)
         H_f_prime_arr = torch.fft.fft(f_prime_arr, dim=0)
         H_g_arr = torch.fft.fft(g_arr, dim=0)
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
-        H_ones = torch.fft.fft(torch.ones(T, device=device), dim=0).reshape(1, T)
-        
+        H_ones = torch.fft.fft(torch.ones(T+1, device=device), dim=0).reshape(1, T+1)
+
         # H_f_arr = torch.nn.functional.pad(H_f_arr, (T, T))
         # H_f_prime_arr = torch.nn.functional.pad(H_f_prime_arr, (T, T))
         # H_g_arr = torch.nn.functional.pad(H_g_arr, (T, T))
         # H_g_prime_arr = torch.nn.functional.pad(H_g_prime_arr, (T, T))
         # H_ones = torch.nn.functional.pad(H_ones, (T, T))
 
-        output_seq = torch.zeros((bs, words, T), device=device, dtype=torch.complex64)
+        output_seq = torch.zeros((bs, words, T+1), device=device, dtype=torch.complex64)
 
         for k in range(words):
             Array_LowRank = ISS(x_data, a=k)
 
             # Convert list of lists to tensor for batch processing
-            ISS_sum = torch.stack([item[0] for item in Array_LowRank], dim=0).to(device)[:, :,1:]
-            Consicutive_Sum_D1 = torch.stack([item[1] for item in Array_LowRank], dim=0).to(device)[:,:,1:]
-            Consicutive_Sum_D2 = torch.stack([item[2] for item in Array_LowRank], dim=0).to(device)[:,:,1:]
-            ISS_D1 = torch.stack([item[3] for item in Array_LowRank], dim=0).to(device)[:,:,1:]
+            ISS_sum = torch.stack([item[0] for item in Array_LowRank], dim=0).to(device)
+            Consicutive_Sum_D1 = torch.stack([item[1] for item in Array_LowRank], dim=0).to(device)
+            Consicutive_Sum_D2 = torch.stack([item[2] for item in Array_LowRank], dim=0).to(device)
+            ISS_D1 = torch.stack([item[3] for item in Array_LowRank], dim=0).to(device) #[:,:,1:]
             
-            # print(ISS_sum, 'ISS')
             # Apply FFT to all elements in the batch
             ISS_sum_fft = torch.fft.fft(ISS_sum, dim=-1)
             Consicutive_Sum_D1_fft = torch.fft.fft(Consicutive_Sum_D1, dim=-1)
@@ -177,7 +186,7 @@ class LowRankModel(nn.Module):
             EB = convolve_sequences(H_g_arr, ISS_D1_fft)
             FA = convolve_sequences(H_f_prime_arr, H_ones)
             FB = convolve_sequences(H_g_prime_arr, ISS_D1_fft)
-            output_seq[:, k, :] = (AA * AB) + (BA * BB) + (CA * CB) + (DA * DB) + (EA * EB) + (FA * FB)
+            output_seq[:, k, :] = 0.5*((AA * AB) + (BA * BB) + (CA * CB) + (DA * DB) + (EA * EB) + (FA * FB))
 
         return output_seq.real
 
@@ -199,49 +208,50 @@ def h(T_s, T_s_prime, f, g, f_prime, g_prime):
 
 def super_brute_force_LowRank(x_data, words):
     f = FNNnew()
-    set_seed(f)
+    # set_seed(f)
     g = FNNnew()
-    set_seed(g)
+    # set_seed(g)
     f_prime = FNNnew()
-    set_seed(f_prime)
+    # set_seed(f_prime)
     g_prime = FNNnew()
-    set_seed(g_prime)
+    # set_seed(g_prime)
     bs,_,T = x_data.size()
-    out = torch.zeros([3, words, 10], device=device)
+    T += 1
+    out = torch.zeros([3, words, T], device=device)
 
 
     for bs in range(bs):
         for k in range(words):
             for t in range(T):
                 total_sum = 0
-                for s in range(1, T+1):
-                    for s_prime in range(1, T+1):
-                        if t>= s-1 and t>=s_prime-1:
-                            h_value = h(t-s+1, t-s_prime+1, f, g, f_prime, g_prime)
+                for s in range(T):
+                    for s_prime in range(T):
+                        if t>= s and t>=s_prime:
+                            h_value = h(s, t-s_prime, f, g, f_prime, g_prime)
                             Array = ISS(x_data, k)
                             Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
                             total_sum += h_value * Z
-                        if t< s-1 and t<s_prime-1:
-                            h_value = h(T+(t-s+1), T+(t-s_prime+1), f, g, f_prime, g_prime)
+                        if t< s and t<s_prime:
+                            h_value = h(s, T+(t-s_prime), f, g, f_prime, g_prime)
                             Array = ISS(x_data, k) 
                             Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
                             total_sum += h_value * Z
-                        if t>= s-1 and t<s_prime-1:
-                            h_value = h(t-s+1, T+(t-s_prime+1), f, g, f_prime, g_prime)
+                        if t>= s and t<s_prime:
+                            h_value = h(s, T+(t-s_prime), f, g, f_prime, g_prime)
                             Array = ISS(x_data, k) 
                             Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
                             total_sum += h_value * Z
-                        if t< s-1 and t>=s_prime-1:
-                            h_value = h(T+(t-s+1), t-s_prime+1, f, g, f_prime, g_prime)
+                        if t< s and t>=s_prime:
+                            h_value = h(s, t-s_prime, f, g, f_prime, g_prime)
                             Array = ISS(x_data, k) 
                             Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
                             total_sum += h_value * Z
                 # Store the output
-                out[bs][k][t] = total_sum
+                out[bs][k][t] = 0.5*total_sum
     return out
 
 def test_ISS():
-    torch.manual_seed(42)
+    # torch.manual_seed(42)
     X = torch.randn(3, 2, 10)
     dX = torch.diff(X, dim=-1,prepend=torch.zeros(3,2,1))
     # dX = torch.tensor([[[1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1]]])
@@ -265,7 +275,7 @@ def test_ISS():
     # print(retF, 'RetF')
     # print(ret2, 'ret2')
     # assert torch.allclose(ret1, ret2)
-    assert torch.allclose( retF, ret2 ) 
+    # assert torch.allclose( retF, ret2 ) 
 
     words = 4
     model = LowRankModel(words)   

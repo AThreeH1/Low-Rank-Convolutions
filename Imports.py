@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.optim.lr_scheduler import StepLR
-from lightning.pytorch.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader, TensorDataset, Dataset, random_split
 import random
 import torch.fft
