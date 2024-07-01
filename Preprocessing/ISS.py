@@ -97,7 +97,7 @@ class FFN(pl.LightningModule):
         return {'test_accuracy': accuracy}
 
 Total_batches = 1000
-sequence_length = 100
+sequence_length = 500
 dim = 2
 data = DataGenerate(Total_batches, sequence_length, dim)
 # data = SimpleDataGenerate(Total_batches, sequence_length)
