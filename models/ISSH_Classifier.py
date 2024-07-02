@@ -168,10 +168,14 @@ sweep_config = {
     'method': 'bayes',
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
     'parameters': {
-        'words': {'values': [2, 4, 6, 8, 10, 12, 14, 16, 20, 24]},
-        'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
-        'epochs': {'values': [10, 20]},
-        'batch_size': {'values': [20, 40, 60, 80]}
+        'words': {'values': [24]},
+        # 2, 4, 6, 8, 10, 12, 14, 16, 20, 24
+        'learning_rate': {'values': [0.01]},
+        # 0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 
+        'epochs': {'values': [10]},
+        # , 20
+        'batch_size': {'values': [20]}
+        # , 40, 60, 80
     }
 }
 
@@ -273,4 +277,4 @@ def train():
     trainer.test(model)
 
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=50)
+    wandb.agent(sweep_id, function=train, count=1)
