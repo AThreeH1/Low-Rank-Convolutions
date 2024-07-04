@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-device = torch.device('cpu')
+device = torch.device('cuda')
 
 class PathDev(nn.Module):
     def __init__(self, d):
@@ -35,8 +35,8 @@ class PathDev(nn.Module):
             X_t = torch.bmm(X, sum_term)
             outputs.append(X_t)
             X = X_t
+
         A = torch.stack(outputs, dim=1)
-        print(A)
         B = torch.linalg.pinv(A)
         return [A, B]
 
@@ -71,11 +71,11 @@ class PathDevelopmentNetwork(nn.Module):
         # Initialize the FFN models 
         self.f = FNNnew().to(device)
         # set_seed(self.f)
-        self.g = FNNnew()
+        self.g = FNNnew().to(device)
         # set_seed(self.g)
-        self.f_prime = FNNnew()
+        self.f_prime = FNNnew().to(device)
         # set_seed(self.f_prime)
-        self.g_prime = FNNnew()
+        self.g_prime = FNNnew().to(device)
         # set_seed(self.g_prime)
         self.d = d
 
@@ -98,8 +98,8 @@ class PathDevelopmentNetwork(nn.Module):
         H_g_arr = torch.fft.fft(g_arr, dim=0)
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
 
-        model = PathDev(d)
-        tensor = model(x_data)
+        model = PathDev(d).to(device)
+        tensor = model(x_data.to(device))
 
         X = tensor[0]
         X_inv = tensor[1]
@@ -144,7 +144,7 @@ class PathDevelopmentNetwork(nn.Module):
         concatenated_tensor = torch.cat(output_f, dim=2)
 
         # Reshape the concatenated tensor 
-        final = concatenated_tensor.view(1, 5, 3, 3)
+        final = concatenated_tensor.view(a, b, 3, 3)
 
         return final
 

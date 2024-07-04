@@ -15,8 +15,8 @@ from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.PathDev import PathDevelopmentNetwork
 from data.datagenerator import DataGenerate
-from models.LowRank import ISS
 from data.datagenerator import SimpleDataGenerate
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 Total_batches = 1000
 sequence_length = 500
@@ -24,7 +24,7 @@ dim = 2
 data = DataGenerate(Total_batches, sequence_length, dim)
 device = torch.device("cuda")
 
-USE_WANDB = True
+USE_WANDB = False
 if USE_WANDB:
     wandb.login(key = '7e169996e30d15f253a5f1d92ef090f2f3b948c4')
 
@@ -32,24 +32,28 @@ if USE_WANDB:
 class PathClassifier(pl.LightningModule):
     def __init__(
             self,
-            LowRank,
-            HyenaOperator,
+            PathD,
             FFN,
             input,
             target
         ):
         super(PathClassifier, self).__init__()
-        self.Hyena = HyenaOperator
         self.FFN = FFN
+        self.PathD = PathD
         self.x_data = input
         self.target = target
 
     def forward(self,x):
-        y = LowRank(x)
+        y = PathD(x)
         # p = y.permute(0, 2, 1)
         # q = self.Hyena(p)
-        z = y[:,:,-1]
-        out = self.FFN(z)
+        a, b, _, _ = y.shape
+        k = y.view(a, b, 9)
+        z = k[:,-1,:]
+        z1 = z.view(a, 9)
+        zf = torch.tensor(z1, dtype=torch.float32)
+        print(zf.shape)
+        out = self.FFN(zf)
         return out
 
     def prepare_data(self):
@@ -110,8 +114,7 @@ class PathClassifier(pl.LightningModule):
     
 # Convert data into tensors
 x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
-x_data = x_datax.permute(0, 2, 1)
-x_data = torch.tensor(x_data, dtype=torch.float32)
+x_data = torch.tensor(x_datax, dtype=torch.float32)
 labels = torch.tensor([data_point[-1] for data_point in data])
 
 Array_accuracy = []
@@ -119,15 +122,12 @@ Actual_labels = []
 
 # Assigning Values
 d_model = dim
-words = 4
-# batch_size = 1000
-# train_ratio = 0.8
+d = 3
 
 # Initialize HyenaOperator model
-LowRank = LowRankModel(words)
-ffn = FFN(words)
-Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
-Model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels)
+PathD = PathDevelopmentNetwork(d)
+ffn = FFN(d**2)
+Model = PathClassifier(PathD, ffn, x_data, labels)
 
 checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
