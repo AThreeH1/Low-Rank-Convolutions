@@ -161,25 +161,4 @@ if USE_WANDB:
     wandb.finish()
 
 
-model = PathDevelopmentNetwork(3)
-tensor = torch.ones(1, 5, 9)
-h = torch.ones(1,5)
-
-reshaped_tensor = tensor.view(1, 5, 9)
-
-#Split tensor along the third dimension into 9 tensors
-sliced_tensors = torch.split(reshaped_tensor, 1, dim=2)
-
-# Reshape each sliced tensor to (1, 5, 1)
-final_tensors = [t.view(1, 5, 1) for t in sliced_tensors]
-
-output = []
-
-for i in range(len(final_tensors)):
-    in_fft = torch.fft.fft(final_tensors[i].squeeze(), dim = -1)
-    h_fft = torch.fft.fft(h, dim = -1)
-    Mul = in_fft * h_fft
-    out_fft = torch.fft.ifft(Mul, dim = -1)
-    output.append(out_fft)
-
-print(output)
+        
