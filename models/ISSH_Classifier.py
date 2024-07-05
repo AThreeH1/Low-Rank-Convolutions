@@ -194,7 +194,6 @@ class ISSHClassifier(pl.LightningModule):
         self.batch_size = batch_size
 
     def forward(self, x):
-        print(x.device)
         y = self.LowRank(x)
         z = y[:, :, -1]
         out = self.FFN(z)

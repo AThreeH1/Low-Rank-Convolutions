@@ -48,14 +48,14 @@ class FNNnew(nn.Module):
         self.fc1 = nn.Linear(1, 5)
         self.fc2 = nn.Linear(5, 1)
     
-        nn.init.zeros_(self.fc1.weight)
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.weight)
+        # nn.init.zeros_(self.fc1.weight)
+        # nn.init.zeros_(self.fc1.bias)
+        # nn.init.zeros_(self.fc2.weight)
         
-        # Bias of the last layer = 1
-        nn.init.ones_(self.fc2.bias)
+        # # Bias of the last layer = 1
+        # nn.init.ones_(self.fc2.bias)
 
-        self.a = -50
+        self.a = -5
 
     def forward(self, x):
         z = torch.tanh(self.fc1(x))
