@@ -158,3 +158,80 @@ def SimpleDataGenerate(net, sequence_length):
     print('data stored')
     
     return data
+
+
+
+def task2(net, sequence_length):
+
+# l = length of signal
+# m = point selected at random at which the signal starts
+# d[] = list of dimensions for sinosuidal waves
+# sigs = list of signal-dimension for waves to be classified
+# Cp = Coincedent signal point or number 
+# Ap = Any signal point or number
+# S1,2,3 = Signal Types
+# p or Tar = Singal selected or Target Signal respectively 
+
+    data = []
+
+    for r in range(net):
+
+        # initialising dimentions with random numbers
+        d1 = []
+        d2 = []
+
+        for i in range(sequence_length):
+            d1.append((random.random()) - 0.5)
+            d2.append((random.random()) - 0.5)
+
+        def s1(t):
+            if t < 0.5:
+                return t
+            else:
+                return 1 - t
+        def s2(t):
+            if 0 <= t < 0.5:
+                return 0.5
+            else:
+                return -0.5
+        def s3(t):
+            return (-(0.5**2 - (t - 0.5)**2)**0.5)
+
+        l = random.randint(10, sequence_length // 2)
+
+        m1 = random.randint(0, (sequence_length // 2) - l)
+        m2 = random.randint(m1+l, ((sequence_length // 2) - l) + m1+l)
+
+        p1 = random.randint(1,3)
+        p2 = random.randint(1,3)
+
+        for i in range(l):
+            d1[m1] = (np.sin(i*2*np.pi/(l-1)))/2
+
+            j = i/(l-1)
+            if p1 == 1:
+                d1[m2] = s1(j)
+                d2[m1] = s1(j)
+            if p1 == 2:
+                d1[m2] = s2(j)
+                d2[m1] = s2(j)
+            if p1 == 3:
+                d1[m2] = s3(j)
+                d2[m1] = s3(j)
+
+            if p2 == 1:
+                d2[m2] = s1(j)
+            if p2 == 2:
+                d2[m2] = s2(j)
+            if p2 == 3:
+                d2[m2] = s3(j)
+
+            m1 += 1
+            m2 += 1
+
+        Batch = (d1, d2, p2-1)
+        data.append(Batch)
+
+    print('data stored')
+    
+    return data
