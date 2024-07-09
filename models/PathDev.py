@@ -29,7 +29,7 @@ class PathDev(nn.Module):
             # Compute the matrix multiplications
             term1 = A1 * Z1_t
             term2 = A2 * Z2_t
-            sum_term = term1 + term2  # Shape (batch_size, d, d)
+            sum_term = torch.matrix_exp(term1 + term2)  # Shape (batch_size, d, d)
             
             # Compute the next X_t
             X_t = torch.bmm(X, sum_term)
@@ -37,7 +37,8 @@ class PathDev(nn.Module):
             X = X_t
 
         A = torch.stack(outputs, dim=1)
-        B = torch.linalg.pinv(A)
+        B = torch.linalg.inv(A)
+         
         return [A, B]
 
 
@@ -77,6 +78,8 @@ class PathDevelopmentNetwork(nn.Module):
         # set_seed(self.f_prime)
         self.g_prime = FNNnew().to(device)
         # set_seed(self.g_prime)
+
+        self.path_dev = PathDev(d).to(device)
         self.d = d
 
     def forward(self, x_data):
@@ -98,14 +101,13 @@ class PathDevelopmentNetwork(nn.Module):
         H_g_arr = torch.fft.fft(g_arr, dim=0)
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
 
-        model = PathDev(d).to(device)
-        tensor = model(x_data.to(device))
+        tensor = self.path_dev(x_data.to(device))
 
         X = tensor[0]
         X_inv = tensor[1]
         a,b,c,_ = X.shape
         reshaped_X = X.view(a, b, d**2)
-        reshaped_X_inv = X_inv.view(a, b, d**2)
+        reshaped_X_inv = X_inv.reshape(a, b, d**2)
 
         #Split tensor along the third dimension into d**2 tensors
         sliced_X = torch.split(reshaped_X, 1, dim=2)
@@ -146,7 +148,7 @@ class PathDevelopmentNetwork(nn.Module):
         # Reshape the concatenated tensor 
         final = concatenated_tensor.view(a, b, 3, 3)
 
-        return final
+        return final.real
 
 
 # Example usage

@@ -71,7 +71,7 @@ class PathClassifier(pl.LightningModule):
         k = y.view(a, b, 9)
         z = k[:,-1,:]
         z1 = z.view(a, 9)
-        zf = torch.tensor(z1, dtype=torch.float32)
+        zf = z1.float()
         out = self.FFN(zf)
         return out
 
@@ -178,5 +178,5 @@ def train():
     #     wandb.finish()
 
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=5)
+    wandb.agent(sweep_id, function=train, count=10)
         

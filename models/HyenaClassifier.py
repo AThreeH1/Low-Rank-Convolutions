@@ -15,12 +15,13 @@ from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate
+from data.datagenerator import task2
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 Total_batches = 1000
 sequence_length = 500
 dim = 2
-data = DataGenerate(Total_batches, sequence_length, dim)
+data = task2(Total_batches, sequence_length)
 
 USE_WANDB = True
 if USE_WANDB:

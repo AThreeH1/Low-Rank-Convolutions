@@ -15,6 +15,7 @@ from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate
+from data.datagenerator import task2
 # from Preprocessing.ISS import LowRankModel
 from models.LowRank import LowRankModel
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -22,7 +23,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 Total_batches = 1000
 sequence_length = 500
 dim = 2
-data = DataGenerate(Total_batches, sequence_length, dim)
+data = task2(Total_batches, sequence_length)
 device = torch.device("cuda")
 
 USE_WANDB = True
@@ -168,14 +169,13 @@ sweep_config = {
     'method': 'bayes',
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
     'parameters': {
-        'words': {'values': [24]},
-        # 2, 4, 6, 8, 10, 12, 14, 16, 20, 24
-        'learning_rate': {'values': [0.01]},
-        # 0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 
-        'epochs': {'values': [10]},
-        # , 20
-        'batch_size': {'values': [20]}
-        # , 40, 60, 80
+        'words': {'values': [2, 4, 6, 8, 10, 12, 14, 16, 20, 24]},
+        
+        'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
+       
+        'epochs': {'values': [10, 20]},
+
+        'batch_size': {'values': [20, 40, 60, 80]}
     }
 }
 
@@ -276,4 +276,4 @@ def train():
     trainer.test(model)
 
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=1)
+    wandb.agent(sweep_id, function=train, count=20)
