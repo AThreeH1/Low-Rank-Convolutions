@@ -17,24 +17,41 @@ class PathDev(nn.Module):
         # Ensure A1 and A2 are anti-symmetric
         A1 = self.A1 - self.A1.T
         A2 = self.A2 - self.A2.T
+        
         # Initialize X_0 as the identity matrix
         X = torch.eye(self.d).unsqueeze(0).repeat(batch_size, 1, 1).to(Z.device)
         # Output container
         outputs = [X]
 
-        for t in range(1, seq_length):
-            Z1_t = Z[:, t, 0].unsqueeze(1).unsqueeze(2)  # Shape (batch_size, 1, 1)
-            Z2_t = Z[:, t, 1].unsqueeze(1).unsqueeze(2)  # Shape (batch_size, 1, 1)
+        # for t in range(1, seq_length):
+        #     Z1_t = Z[:, t, 0].unsqueeze(1).unsqueeze(2)  # Shape (batch_size, 1, 1)
+        #     Z2_t = Z[:, t, 1].unsqueeze(1).unsqueeze(2)  # Shape (batch_size, 1, 1)
             
-            # Compute the matrix multiplications
-            term1 = A1 * Z1_t
-            term2 = A2 * Z2_t
-            sum_term = torch.matrix_exp(term1 + term2)  # Shape (batch_size, d, d)
+        #     # Compute the matrix multiplications
+        #     term1 = A1 * Z1_t
+        #     term2 = A2 * Z2_t
+        #     sum_term = torch.matrix_exp(term1 + term2)  # Shape (batch_size, d, d)
             
+        #     # Compute the next X_t
+        #     X_t = torch.bmm(X, sum_term)
+        #     outputs.append(X_t)
+        #     X = X_t
+
+        Z1 = Z[:, :, 0].unsqueeze(-1).unsqueeze(-1)  # Shape (batch_size, seq_length, 1)
+        Z2 = Z[:, :, 1].unsqueeze(-1).unsqueeze(-1)  # Shape (batch_size, seq_length, 1)
+
+        # Compute the matrix multiplications
+        term1 = A1 * Z1  # Shape (batch_size, seq_length-1, d, d)
+        term2 = A2 * Z2  # Shape (batch_size, seq_length-1, d, d)
+        sum_term = torch.matrix_exp(term1 + term2)  # Shape (batch_size, seq_length-1, d, d)
+
+        # Compute X_t inside the loop using precomputed sum_term
+        for t in range(1, seq_length):  # Adjust range since we start from 1
             # Compute the next X_t
-            X_t = torch.bmm(X, sum_term)
+            X_t = torch.bmm(X, sum_term[:, t])
             outputs.append(X_t)
             X = X_t
+
 
         A = torch.stack(outputs, dim=1)
         B = torch.linalg.inv(A)

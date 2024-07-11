@@ -13,7 +13,7 @@ sys.path.append(parent_dir)
 # Now you can import your modules
 from utils.imports import *
 from models.StandAloneFFN import FFN
-from models.PathDev import PathDevelopmentNetwork
+from models.PathDev import PathDev
 from data.datagenerator import DataGenerate
 from data.datagenerator import SimpleDataGenerate
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -35,7 +35,7 @@ sweep_config = {
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
         
-        'epochs': {'values': [10, 20]},
+        'epochs': {'values': [10]},
 
         'batch_size': {'values': [20, 40, 60, 80]}
         
@@ -67,8 +67,8 @@ class PathClassifier(pl.LightningModule):
         y = self.PathD(x)
         # p = y.permute(0, 2, 1)
         # q = self.Hyena(p)
-        a, b, _, _ = y.shape
-        k = y.view(a, b, 9)
+        a, b, _, _ = y[0].shape
+        k = y[0].view(a, b, 9)
         z = k[:,-1,:]
         z1 = z.view(a, 9)
         zf = z1.float()
@@ -146,7 +146,7 @@ def train():
     d = 3
 
     # Initialize HyenaOperator model
-    PathD = PathDevelopmentNetwork(d)
+    PathD = PathDev(d)
     ffn = FFN(d**2)
     Model = PathClassifier(PathD, ffn, x_data, labels, config.learning_rate, config.batch_size)
 
@@ -178,5 +178,5 @@ def train():
     #     wandb.finish()
 
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=10)
+    wandb.agent(sweep_id, function=train, count=1)
         
