@@ -23,7 +23,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 Total_batches = 1000
 sequence_length = 500
 dim = 2
-data = task2(Total_batches, sequence_length)
+jumps = 3
+data = task2(Total_batches, sequence_length, jumps)
 device = torch.device("cuda")
 
 USE_WANDB = True
@@ -169,17 +170,17 @@ sweep_config = {
     'method': 'bayes',
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
     'parameters': {
-        'words': {'values': [2, 4, 6, 8, 10, 12, 14, 16, 20, 24]},
+        'words': {'values': [2, 4, 6, 8, 12, 16, 20, 24]},
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
        
-        'epochs': {'values': [10, 20]},
+        'epochs': {'values': [10]},
 
         'batch_size': {'values': [20, 40, 60, 80]}
     }
 }
 
-sweep_id = wandb.sweep(sweep_config, project='ISS')
+sweep_id = wandb.sweep(sweep_config, project='ISSJumps')
 
 # Define your model class
 class ISSHClassifier(pl.LightningModule):
@@ -261,7 +262,7 @@ def train():
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
-    wandb_logger = WandbLogger(project='ISS', log_model="all")
+    wandb_logger = WandbLogger(project='ISSJumps', log_model="all")
 
     trainer = pl.Trainer(
         accelerator="gpu",

@@ -8,6 +8,8 @@ class PathDev(nn.Module):
         super(PathDev, self).__init__()
         self.d = d
         # Initialize two learnable 3x3 matrices
+        # self.A1 = nn.Parameter(torch.tensor([[1.00,2.00,3.00],[4.00,5.00,6.00],[7.00,8.00,9.00]]))
+        # self.A2 = nn.Parameter(torch.tensor([[1.00,2.00,3.00],[4.00,5.00,6.00],[7.00,8.00,9.00]]))     
         self.A1 = nn.Parameter(torch.randn(d, d))
         self.A2 = nn.Parameter(torch.randn(d, d))
 
@@ -22,20 +24,6 @@ class PathDev(nn.Module):
         X = torch.eye(self.d).unsqueeze(0).repeat(batch_size, 1, 1).to(Z.device)
         # Output container
         outputs = [X]
-
-        # for t in range(1, seq_length):
-        #     Z1_t = Z[:, t, 0].unsqueeze(1).unsqueeze(2)  # Shape (batch_size, 1, 1)
-        #     Z2_t = Z[:, t, 1].unsqueeze(1).unsqueeze(2)  # Shape (batch_size, 1, 1)
-            
-        #     # Compute the matrix multiplications
-        #     term1 = A1 * Z1_t
-        #     term2 = A2 * Z2_t
-        #     sum_term = torch.matrix_exp(term1 + term2)  # Shape (batch_size, d, d)
-            
-        #     # Compute the next X_t
-        #     X_t = torch.bmm(X, sum_term)
-        #     outputs.append(X_t)
-        #     X = X_t
 
         Z1 = Z[:, :, 0].unsqueeze(-1).unsqueeze(-1)  # Shape (batch_size, seq_length, 1)
         Z2 = Z[:, :, 1].unsqueeze(-1).unsqueeze(-1)  # Shape (batch_size, seq_length, 1)
@@ -168,13 +156,22 @@ class PathDevelopmentNetwork(nn.Module):
         return final.real
 
 
+def brute_force_path_dev(Z):
+    A1 = torch.tensor([[1,2,3],[4,5,6],[7,8,9]])
+    A2 = torch.tensor([[1,2,3],[4,5,6],[7,8,9]]) 
+    A1 = A1 - A1.T 
+    A2 = A2 - A2.T
+    return torch.matrix_exp(A1 * (Z[:,1,0].unsqueeze(-1).unsqueeze(-1)) + A2 * (Z[:,1,1].unsqueeze(-1).unsqueeze(-1)))
+
+
 # Example usage
 if __name__ == "__main__":
     d = 3
     total_batches = 3
     seq_length = 100
     dimension = 2
-
+    
+    torch.manual_seed(42)
     # Create a sample input signal
     Z = torch.randn(total_batches, seq_length, dimension)
 
@@ -185,3 +182,13 @@ if __name__ == "__main__":
     output = model(Z)
 
     print('out', output.shape)  # Expected output shape: (total_batches, seq_length, d, d)
+
+    X1_brute = brute_force_path_dev(Z)
+    # print(X1_brute)
+    path_dev = PathDev(d)
+    X1_path_dev = path_dev(Z)[0][:,1,:,:]
+    # print(X1_path_dev)
+
+
+    # Please set A1 and A2 to the manual tensors before running the assertion 
+    # assert torch.allclose(X1_brute, X1_path_dev)

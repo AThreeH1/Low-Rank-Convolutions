@@ -21,7 +21,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 Total_batches = 1000
 sequence_length = 500
 dim = 2
-data = task2(Total_batches, sequence_length)
+jumps = 3
+data = task2(Total_batches, sequence_length, jumps)
 
 USE_WANDB = True
 if USE_WANDB:
@@ -31,18 +32,18 @@ sweep_config = {
     'method': 'bayes',
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
     'parameters': {
-        'order': {'values': [ 2, 4, 6, 8, 10, 12]},
+        'order': {'values': [ 2, 4, 8, 12]},
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
         
-        'epochs': {'values': [10, 20]},
+        'epochs': {'values': [10]},
 
         'batch_size': {'values': [20, 40, 60, 80]}
         
     }
 }
 
-sweep_id = wandb.sweep(sweep_config, project='lightning_model')
+sweep_id = wandb.sweep(sweep_config, project='HyenaJumps')
 
 ### FunctionClassifier
 
@@ -155,7 +156,7 @@ def train():
 
     # initiate wandb logger
     if USE_WANDB:
-        wandb_logger = WandbLogger(project = 'lightning_model',log_model="all")
+        wandb_logger = WandbLogger(project = 'HyenaJumps',log_model="all")
     else:
         wandb_logger = None
 
@@ -181,7 +182,7 @@ def train():
     #     wandb.finish()
 
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=15)
+    wandb.agent(sweep_id, function=train, count=10)
 
 
 
