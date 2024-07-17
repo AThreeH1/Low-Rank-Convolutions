@@ -27,9 +27,6 @@ jumps = 3
 data = task2(Total_batches, sequence_length, jumps)
 # device = torch.device("cuda")
 
-USE_WANDB = True
-if USE_WANDB:
-    wandb.login() # use wandb login procedure, instead of fixed API key
 
 sweep_config = {
 
@@ -48,7 +45,6 @@ sweep_config = {
     }
 }
 
-sweep_id = wandb.sweep(sweep_config, project='ISS')
 
 # Define your model class
 class ISSHClassifier(pl.LightningModule):
@@ -110,9 +106,14 @@ class ISSHClassifier(pl.LightningModule):
         return {'test_accuracy': accuracy}
 
 # Training function to use wandb sweep
-def train():
-    wandb.init()
-    config = wandb.config
+def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20):
+    if use_wandb:
+        wandb.init()
+        config = wandb.config
+        words = config.words
+        learning_rate = config.learning_rate
+        epochs = config.epochs
+        batch_size = config.batch_size
 
     # Convert data into tensors
     x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data], dtype=torch.float32)
@@ -123,18 +124,24 @@ def train():
     d_model = dim
 
     # Initialize the model with sweep parameters
-    LowRank = LowRankModel(config.words)
+    LowRank = LowRankModel(words)
     Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
-    ffn = FFN(config.words)
-    model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels, config.learning_rate, config.batch_size)
+    ffn = FFN(words)
+    model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels, learning_rate, batch_size)
+    # wandb_logger.watch seems to have a bug; it does NOT log the graph; so, we print the model here (-> Logs in wandb)
+    print(model)
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
-    wandb_logger = WandbLogger(project='ISS', log_model="all")
+    if use_wandb:
+        wandb_logger = WandbLogger(project='ISS', log_model="all")
+        wandb_logger.watch(model, log="all", log_freq=10, log_graph=True)
+    else:
+        wandb_logger = None
 
     trainer = pl.Trainer(
         accelerator="auto",
-        max_epochs=config.epochs,
+        max_epochs=epochs,
         logger=wandb_logger,
         log_every_n_steps=10,
         default_root_dir=current_dir,
@@ -144,5 +151,11 @@ def train():
     trainer.fit(model)
     trainer.test(model)
 
+def run_sweep():
+    wandb.login() # Use wandb login procedure, instead of hardcoded API key.
+    sweep_id = wandb.sweep(sweep_config, project='ISS')
+    wandb.agent(sweep_id, function=train, count=50)
+
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=1)
+    run_sweep()
+    # train(use_wandb=False)
