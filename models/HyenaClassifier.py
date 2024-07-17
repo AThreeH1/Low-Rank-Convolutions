@@ -26,7 +26,7 @@ data = task2(Total_batches, sequence_length, jumps)
 
 USE_WANDB = True
 if USE_WANDB:
-    wandb.login(key = '7e169996e30d15f253a5f1d92ef090f2f3b948c4')
+    wandb.login() # use wandb login procedure, instead of fixed API key
 
 sweep_config = {
 
@@ -163,7 +163,7 @@ def train():
 
     # Initialize Trainer and start training
     trainer = pl.Trainer(
-        accelerator="gpu",
+        accelerator="auto",
         max_epochs=config.epochs,
         logger = wandb_logger,
         log_every_n_steps=10,
