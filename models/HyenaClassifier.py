@@ -29,8 +29,11 @@ if USE_WANDB:
     wandb.login(key = '7e169996e30d15f253a5f1d92ef090f2f3b948c4')
 
 sweep_config = {
+
     'method': 'bayes',
+
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
+
     'parameters': {
         'order': {'values': [ 2, 4, 8, 12]},
         
@@ -144,8 +147,6 @@ def train():
 
     # Assigning Values
     d_model = dim
-    # batch_size = 1000
-    # train_ratio = 0.8
 
     # Initialize HyenaOperator model
     ffn = FFN(dim)

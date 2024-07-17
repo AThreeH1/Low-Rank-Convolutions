@@ -5,9 +5,25 @@ device = torch.device('cuda')
 
 class PathDev(nn.Module):
     def __init__(self, d):
+
+        """
+        X_{s-1,s} = exp(Sum_{i = 0 to dims}(A_i * Z_i[s]))
+        X_{0,s} = X_{0,s-1} * X_{s-1,s}
+
+        args:
+            A1 and A2 = parameterised matrices
+            T = Sequence length
+            d = length/height of matrix X
+            A & B = X & X^-1 resp.
+
+        output:
+            List of two sequences of size (bs, T, d, d), first one being the X and second being X^-1
+
+        """
+
         super(PathDev, self).__init__()
         self.d = d
-        # Initialize two learnable 3x3 matrices
+        # Initialize two learnable dxd matrices
         # self.A1 = nn.Parameter(torch.tensor([[1.00,2.00,3.00],[4.00,5.00,6.00],[7.00,8.00,9.00]]))
         # self.A2 = nn.Parameter(torch.tensor([[1.00,2.00,3.00],[4.00,5.00,6.00],[7.00,8.00,9.00]]))     
         self.A1 = nn.Parameter(torch.randn(d, d))
@@ -72,17 +88,28 @@ class FNNnew(nn.Module):
 
 class PathDevelopmentNetwork(nn.Module):
     def __init__(self, d):
+        """
+        Sum_{s,s'}(h(t-s, t-s') * X_{s,s'})
+        h(s,s') = f(s).g(s') + f'(s).g'(s')
+        X_{s,s'} = (X_{0,s})^-1 * X_{0,s'}
+
+        args:
+            bs = Batch size
+            T = Sequence length
+            d = length/height of matrix X
+            AA, AB, BA, etc = Low rank components
+
+        output:
+            Sequence of size (bs, T, d, d)
+
+        """
         super(PathDevelopmentNetwork, self).__init__()
         
         # Initialize the FFN models 
         self.f = FNNnew().to(device)
-        # set_seed(self.f)
         self.g = FNNnew().to(device)
-        # set_seed(self.g)
         self.f_prime = FNNnew().to(device)
-        # set_seed(self.f_prime)
         self.g_prime = FNNnew().to(device)
-        # set_seed(self.g_prime)
 
         self.path_dev = PathDev(d).to(device)
         self.d = d

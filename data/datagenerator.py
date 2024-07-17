@@ -16,14 +16,19 @@ import numpy as np
 
 def DataGenerate(net, sequence_length, dim):
 
-# l = length of signal
-# m = point selected at random at which the signal starts
-# d[] = list of dimensions for sinosuidal waves
-# sigs = list of signal-dimension for waves to be classified
-# Cp = Coincedent signal point or number 
-# Ap = Any signal point or number
-# S1,2,3 = Signal Types
-# p or Tar = Singal selected or Target Signal respectively 
+    """
+    Generates data for task 1
+
+    Args:
+        l = length of signal
+        m = point selected at random at which the signal starts
+        d[] = list of dimensions for sinosuidal waves
+        sigs = list of signal-dimension for waves to be classified
+        Cp = Coincedent signal point or number 
+        Ap = Any signal point or number
+        s1,2,3 = Signal Types
+        p or Tar = Singal selected or Target Signal respectively 
+    """
 
     dim = dim - 1
     data = []
@@ -91,14 +96,19 @@ def DataGenerate(net, sequence_length, dim):
 
 def SimpleDataGenerate(net, sequence_length):
 
-# l = length of signal
-# m = point selected at random at which the signal starts
-# d[] = list of dimensions for sinosuidal waves
-# sigs = list of signal-dimension for waves to be classified
-# Cp = Coincedent signal point or number 
-# Ap = Any signal point or number
-# S1,2,3 = Signal Types
-# p or Tar = Singal selected or Target Signal respectively 
+    """
+    Generates priliminary data for task 1 signals and pointers
+
+    Args:
+        l = length of signal
+        m = point selected at random at which the signal starts, 0 in this case
+        d[] = list of dimensions for sinosuidal waves
+        sigs = list of signal-dimension for waves to be classified
+        Cp = Coincedent signal point or number
+        Ap = Any signal point or number
+        s1,2,3 = Signal Types
+        p or Tar = Singal selected or Target Signal respectively 
+    """
 
     dim = 1
     data = []
@@ -163,14 +173,16 @@ def SimpleDataGenerate(net, sequence_length):
 
 def task2(net, sequence_length, jumps):
 
-# l = length of signal
-# m = point selected at random at which the signal starts
-# d[] = list of dimensions for sinosuidal waves
-# sigs = list of signal-dimension for waves to be classified
-# Cp = Coincedent signal point or number
-# Ap = Any signal point or number
-# S1,2,3 = Signal Types
-# p or Tar = Singal selected or Target Signal respectively
+    """
+    Generates data for task 2
+
+    Args:
+        l = length of signal
+        m = point selected at random at which the signal starts
+        d1 and d2 = signal dimensions
+        s1,2,3 = Target/pointer signals
+        p = list of pointers except p[-1], which is the target 
+    """
 
     data = []
 

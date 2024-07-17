@@ -14,7 +14,7 @@ from data.datagenerator import data
 
 USE_WANDB = False
 if USE_WANDB:
-    wandb.login(key = ['7e169996e30d15f253a5f1d92ef090f2f3b948c4'])
+    wandb.login(key = '7e169996e30d15f253a5f1d92ef090f2f3b948c4')
 
 class FFNClassifier(pl.LightningModule):
     def __init__(

@@ -17,15 +17,15 @@ device = torch.device('cuda')
 # Implementing ISS
 def ISS(x_data, a):
     '''Caculates the low-rank expansion of
-            < ISS_{s,t}, 12 > = ..
-                if a == 1
-            < ISS_{s,t}, 21 > = ..
-                if a == 2
+            < ISS_{s,t}, 1^(a/2 + 1)2 > = ..
+                if a == even
+            < ISS_{s,t}, 2^(a/2 + 0.5)1 > = ..
+                if a == odd
         Args:
             x_data: shape (bs, 2, T)
-            a: int (1 or 2)
+            a: int 
         Returns:
-            out: list of 4 tensors
+            out: lowrank list of 4 tensors
     '''
     bs = x_data.size(0)
     out = []
@@ -71,21 +71,6 @@ def super_brute_force_two_letter_ISS(x_data, w):
                 tmp[:, t] += x_data[:, w[0], r1] * x_data[:, w[1], r2]
     return tmp
 
-# # Set the base seed
-# base_seed = 42
-
-# # Set the seed of the model
-# def set_seed(model, seed=base_seed):
-#     torch.manual_seed(seed)  # Set the global seed for reproducibility
-#     model.apply(set_seed_module)
-
-# # Initialize the weights and biases of the module
-# def set_seed_module(module):
-#     if isinstance(module, nn.Linear):
-#         torch.manual_seed(base_seed)  # Reset the seed for each module
-#         module.weight.data.normal_(mean=0.0, std=0.01)
-#         module.bias.data.fill_(0.0)
-
 # Define the FNN class
 class FNNnew(nn.Module):
     def __init__(self):
@@ -117,17 +102,29 @@ def convolve_sequences(h_fft, f_fft):
 # Define the LowRankModel class
 class LowRankModel(nn.Module):
     def __init__(self, words):
+        """
+            Sum_{s,s'}(h(t-s, t-s') * < ISS_{s,s'},Word >)
+            Where,
+            h(s,s') = f(s).g(s') + f'(s).g'(s')
+            And chens identity for ISS = ... rank 3
+
+            args:
+                bs = batch size
+                T = sequence length or the span of t
+                f, g, f_prime, etc = Components of h
+                AA, AB, BA, etc : Low rank components
+
+            output:
+                Sequence of size (bs, words, T+1)
+
+        """
         super(LowRankModel, self).__init__()
         
         # Initialize the FFN models 
         self.f = FNNnew().to(device)
-        # set_seed(self.f)
         self.g = FNNnew().to(device)
-        # set_seed(self.g)
         self.f_prime = FNNnew().to(device)
-        # set_seed(self.f_prime)
         self.g_prime = FNNnew().to(device)
-        # set_seed(self.g_prime)
         self.words = words
 
     def forward(self, x_data):
@@ -174,11 +171,6 @@ class LowRankModel(nn.Module):
             Consicutive_Sum_D1_fft = torch.fft.fft(Consicutive_Sum_D1, dim=-1)
             Consicutive_Sum_D2_fft = torch.fft.fft(Consicutive_Sum_D2, dim=-1)
             ISS_D1_fft = torch.fft.fft(ISS_D1, dim=-1)
-            
-            # ISS_sum_fft = torch.nn.functional.pad(ISS_sum_fft, (T, T))
-            # Consicutive_Sum_D1_fft = torch.nn.functional.pad(Consicutive_Sum_D1_fft, (T, T))
-            # Consicutive_Sum_D2_fft = torch.nn.functional.pad(Consicutive_Sum_D2_fft, (T, T))
-            # ISS_D1_fft = torch.nn.functional.pad(ISS_D1_fft, (T, T))
 
             # Perform batched convolution and accumulate results
             AA = convolve_sequences(H_f_arr, ISS_sum_fft)

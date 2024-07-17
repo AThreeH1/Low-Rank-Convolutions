@@ -29,8 +29,11 @@ if USE_WANDB:
     wandb.login(key = '7e169996e30d15f253a5f1d92ef090f2f3b948c4')
 
 sweep_config = {
+
     'method': 'bayes',
+
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
+    
     'parameters': {
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
