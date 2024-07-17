@@ -48,10 +48,9 @@ sweep_config = {
 
 # Define your model class
 class ISSHClassifier(pl.LightningModule):
-    def __init__(self, LowRank, HyenaOperator, FFN, input, target, learning_rate, batch_size):
+    def __init__(self, LowRank, FFN, input, target, learning_rate, batch_size):
         super(ISSHClassifier, self).__init__()
         self.LowRank = LowRank
-        self.Hyena = HyenaOperator
         self.FFN = FFN
         self.x_data = input
         self.target = target
@@ -120,15 +119,14 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     x_data = x_datax.permute(0, 2, 1)
     labels = torch.tensor([data_point[-1] for data_point in data])
 
-    # Assigning Values
-    d_model = dim
-
     # Initialize the model with sweep parameters
     LowRank = LowRankModel(words)
-    Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
+
+    # TODO use this again. make order a hyperparameter; if order=0, then no Hyena (as it is done now)
+    #Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
     ffn = FFN(words)
-    model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels, learning_rate, batch_size)
-    # wandb_logger.watch seems to have a bug; it does NOT log the graph; so, we print the model here (-> Logs in wandb)
+    model = ISSHClassifier(LowRank, ffn, x_data, labels, learning_rate, batch_size)
+    # wandb_logger.watch seems to have a bug; it does not always log the graph; so, we print the model here (-> Logs in wandb)
     print(model)
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
@@ -154,7 +152,7 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
 def run_sweep():
     wandb.login() # Use wandb login procedure, instead of hardcoded API key.
     sweep_id = wandb.sweep(sweep_config, project='ISS')
-    wandb.agent(sweep_id, function=train, count=50)
+    wandb.agent(sweep_id, function=train, count=5)
 
 if __name__ == "__main__":
     run_sweep()
