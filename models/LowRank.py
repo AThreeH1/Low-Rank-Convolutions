@@ -12,7 +12,7 @@ sys.path.append(parent_dir)
 from utils.imports import *
 from data.datagenerator import DataGenerate
 
-device = torch.device('cuda')
+# device = torch.device('cuda')
 
 # Implementing ISS
 def ISS(x_data, a):
@@ -37,16 +37,16 @@ def ISS(x_data, a):
 
     T = D1.size(1) + 1
 
-    Consicutive_Sum_D1 = torch.cat([torch.zeros(bs, 1, device=D1.device), torch.cumsum(D1, dim=1)], dim=1)
-    Consicutive_Sum_D2 = torch.cat([torch.zeros(bs, 1, device=D1.device), torch.cumsum(D2, dim=1)], dim=1)
+    Consicutive_Sum_D1 = torch.cat([torch.zeros(bs, 1, device=x_data.device), torch.cumsum(D1, dim=1)], dim=1)
+    Consicutive_Sum_D2 = torch.cat([torch.zeros(bs, 1, device=x_data.device), torch.cumsum(D2, dim=1)], dim=1)
     QS = D1 * D2
-    ISS_QS = torch.cat([torch.zeros(bs, 1, device=D1.device), torch.cumsum(QS, dim=1)], dim=1)
+    ISS_QS = torch.cat([torch.zeros(bs, 1, device=x_data.device), torch.cumsum(QS, dim=1)], dim=1)
 
-    ISS_D1 = torch.zeros(bs, T, device=D1.device)
-    ISS_D2 = torch.zeros(bs, T, device=D1.device)
+    ISS_D1 = torch.zeros(bs, T, device=x_data.device)
+    ISS_D2 = torch.zeros(bs, T, device=x_data.device)
 
     # Using broadcasting to perform element-wise operations on tensors
-    range_tensor = torch.arange(2, T, device=D1.device).unsqueeze(0)  # shape: (1, T-1)
+    range_tensor = torch.arange(2, T, device=x_data.device).unsqueeze(0)  # shape: (1, T-1)
     ISS_D1[:, 1:] = torch.cumsum((Consicutive_Sum_D1[:, :-1] * D2), dim=1)
     ISS_D2[:, 1:] = torch.cumsum((Consicutive_Sum_D2[:, :-1] * D1), dim=1)
 
@@ -121,27 +121,27 @@ class LowRankModel(nn.Module):
         super(LowRankModel, self).__init__()
         
         # Initialize the FFN models 
-        self.f = FNNnew().to(device)
-        self.g = FNNnew().to(device)
-        self.f_prime = FNNnew().to(device)
-        self.g_prime = FNNnew().to(device)
+        self.f = FNNnew()
+        self.g = FNNnew()
+        self.f_prime = FNNnew()
+        self.g_prime = FNNnew()
         self.words = words
 
     def forward(self, x_data):
         words = self.words
         T = x_data.size(2)
         bs = x_data.size(0)
-        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze().flip(0)
-        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze().flip(0)
-        g_arr = self.g(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze()
-        g_prime_arr = self.g_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(device)).squeeze()       
+        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
+        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
+        g_arr = self.g(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
+        g_prime_arr = self.g_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()       
         
         f_arr = torch.nn.functional.pad(f_arr, (T, T))
         f_prime_arr = torch.nn.functional.pad(f_prime_arr, (T, T))
         g_arr = torch.nn.functional.pad(g_arr, (T, T))
         g_prime_arr = torch.nn.functional.pad(g_prime_arr, (T, T))
 
-        ones = torch.ones(T+1, device=device)
+        ones = torch.ones(T+1, device=x_data.device)
         ones = torch.nn.functional.pad(ones, (T, T))
 
         H_f_arr = torch.fft.fft(f_arr, dim=0)
@@ -150,16 +150,16 @@ class LowRankModel(nn.Module):
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
         H_ones = torch.fft.fft(ones, dim=0).reshape(1, 3*T+1)
 
-        output_seq = torch.zeros((bs, words, 3*T+1), device=device, dtype=torch.complex64)
+        output_seq = torch.zeros((bs, words, 3*T+1), device=x_data.device, dtype=torch.complex64)
 
         for k in range(words):
             Array_LowRank = ISS(x_data, a=k)
 
             # Convert list of lists to tensor for batch processing
-            ISS_sum = torch.stack([item[0] for item in Array_LowRank], dim=0).to(device)
-            Consicutive_Sum_D1 = torch.stack([item[1] for item in Array_LowRank], dim=0).to(device)
-            Consicutive_Sum_D2 = torch.stack([item[2] for item in Array_LowRank], dim=0).to(device)
-            ISS_D1 = torch.stack([item[3] for item in Array_LowRank], dim=0).to(device) #[:,:,1:]
+            ISS_sum = torch.stack([item[0] for item in Array_LowRank], dim=0).to(x_data.device)
+            Consicutive_Sum_D1 = torch.stack([item[1] for item in Array_LowRank], dim=0).to(x_data.device)
+            Consicutive_Sum_D2 = torch.stack([item[2] for item in Array_LowRank], dim=0).to(x_data.device)
+            ISS_D1 = torch.stack([item[3] for item in Array_LowRank], dim=0).to(x_data.device) #[:,:,1:]
 
             ISS_sum = torch.nn.functional.pad(ISS_sum, (T, T))
             Consicutive_Sum_D1 = torch.nn.functional.pad(Consicutive_Sum_D1, (T, T))
@@ -216,7 +216,7 @@ def super_brute_force_LowRank(x_data, words):
     # set_seed(g_prime)
     bs,_,T = x_data.size()
     T += 1
-    out = torch.zeros([3, words, T], device=device)
+    out = torch.zeros([3, words, T], device=x_data.device)
 
 
     for bs in range(bs):

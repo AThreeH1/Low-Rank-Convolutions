@@ -189,12 +189,8 @@ def task2(net, sequence_length, jumps):
     for r in range(net):
 
         # initialising dimentions with random numbers
-        d1 = []
-        d2 = []
-
-        for i in range(sequence_length):
-            d1.append((random.random()) - 0.5)
-            d2.append((random.random()) - 0.5)
+        d1 = torch.rand(sequence_length) - 0.5
+        d2 = torch.rand(sequence_length) - 0.5
 
         def s1(t):
             if t < 0.5:

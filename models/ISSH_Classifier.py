@@ -25,7 +25,7 @@ sequence_length = 500
 dim = 2
 jumps = 3
 data = task2(Total_batches, sequence_length, jumps)
-device = torch.device("cuda")
+# device = torch.device("cuda")
 
 USE_WANDB = True
 if USE_WANDB:
@@ -48,7 +48,7 @@ sweep_config = {
     }
 }
 
-sweep_id = wandb.sweep(sweep_config, project='ISSJumps')
+sweep_id = wandb.sweep(sweep_config, project='ISS')
 
 # Define your model class
 class ISSHClassifier(pl.LightningModule):
@@ -130,7 +130,7 @@ def train():
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
-    wandb_logger = WandbLogger(project='ISSJumps', log_model="all")
+    wandb_logger = WandbLogger(project='ISS', log_model="all")
 
     trainer = pl.Trainer(
         accelerator="gpu",
@@ -145,4 +145,4 @@ def train():
     trainer.test(model)
 
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=20)
+    wandb.agent(sweep_id, function=train, count=1)

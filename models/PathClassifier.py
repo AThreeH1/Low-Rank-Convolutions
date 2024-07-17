@@ -22,7 +22,7 @@ Total_batches = 1000
 sequence_length = 500
 dim = 2
 data = DataGenerate(Total_batches, sequence_length, dim)
-device = torch.device("cuda")
+# device = torch.device("cuda")
 
 USE_WANDB = True
 if USE_WANDB:

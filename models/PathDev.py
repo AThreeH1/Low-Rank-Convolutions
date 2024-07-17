@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-device = torch.device('cuda')
+# device = torch.device('cuda')
 
 class PathDev(nn.Module):
     def __init__(self, d):
@@ -106,22 +106,22 @@ class PathDevelopmentNetwork(nn.Module):
         super(PathDevelopmentNetwork, self).__init__()
         
         # Initialize the FFN models 
-        self.f = FNNnew().to(device)
-        self.g = FNNnew().to(device)
-        self.f_prime = FNNnew().to(device)
-        self.g_prime = FNNnew().to(device)
+        self.f = FNNnew()
+        self.g = FNNnew()
+        self.f_prime = FNNnew()
+        self.g_prime = FNNnew()
 
-        self.path_dev = PathDev(d).to(device)
+        self.path_dev = PathDev(d)
         self.d = d
 
     def forward(self, x_data):
         d = self.d
         T = x_data.size(1)
         bs = x_data.size(0)
-        f_arr = self.f(torch.arange(T, dtype=torch.float32).view(-1, 1).to(device)).squeeze().flip(0)
-        f_prime_arr = self.f_prime(torch.arange(T, dtype=torch.float32).view(-1, 1).to(device)).squeeze().flip(0)
-        g_arr = self.g(torch.arange(T, dtype=torch.float32).view(-1, 1).to(device)).squeeze()
-        g_prime_arr = self.g_prime(torch.arange(T, dtype=torch.float32).view(-1, 1).to(device)).squeeze()       
+        f_arr = self.f(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
+        f_prime_arr = self.f_prime(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
+        g_arr = self.g(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
+        g_prime_arr = self.g_prime(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()       
         
         f_arr = torch.nn.functional.pad(f_arr, (T-1, T-1))
         f_prime_arr = torch.nn.functional.pad(f_prime_arr, (T-1, T-1))
@@ -133,7 +133,7 @@ class PathDevelopmentNetwork(nn.Module):
         H_g_arr = torch.fft.fft(g_arr, dim=0)
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
 
-        tensor = self.path_dev(x_data.to(device))
+        tensor = self.path_dev(x_data.to(x_data.device))
 
         X = tensor[0]
         X_inv = tensor[1]
