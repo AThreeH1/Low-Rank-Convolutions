@@ -24,13 +24,9 @@ dim = 2
 jumps = 3
 data = task2(Total_batches, sequence_length, jumps)
 
-USE_WANDB = True
-if USE_WANDB:
-    wandb.login() # use wandb login procedure, instead of fixed API key
-
 sweep_config = {
 
-    'method': 'bayes',
+    'method': 'random',
 
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
 
@@ -46,7 +42,7 @@ sweep_config = {
     }
 }
 
-sweep_id = wandb.sweep(sweep_config, project='HyenaJumps')
+sweep_id = wandb.sweep(sweep_config, project='ISS')
 
 ### FunctionClassifier
 
@@ -123,18 +119,19 @@ class HyenaClassifier(pl.LightningModule):
         correct = (predicted_labels == y).sum().item()
         total = y.size(0)
         accuracy = correct / total
-        # Array_accuracy.append(predicted_labels)
-        
-        # Actual_labels.append(y)
 
         # Log accuracy
         self.log("test_accuracy", accuracy, on_step=False, on_epoch=True)
 
         return {'test_accuracy': accuracy}
     
-def train():
+def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20):
     wandb.init()
     config = wandb.config
+    order = config.order
+    learning_rate = config.learning_rate
+    epochs = config.epochs
+    batch_size = config.batch_size
     
     # Convert data into tensors
     x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
@@ -142,48 +139,47 @@ def train():
     x_data = torch.tensor(x_data, dtype=torch.float32)
     labels = torch.tensor([data_point[-1] for data_point in data])
 
-    Array_accuracy = []
-    Actual_labels = []
-
     # Assigning Values
     d_model = dim
 
     # Initialize HyenaOperator model
     ffn = FFN(dim)
-    Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=config.order, dropout=0.0, filter_dropout=0.0)
-    Model = HyenaClassifier(Hyena, ffn, x_data, labels, config.learning_rate, config.batch_size)
+    Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=order, dropout=0.0, filter_dropout=0.0)
+    model = HyenaClassifier(Hyena, ffn, x_data, labels, learning_rate, batch_size)
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
+    print(model)
 
     # initiate wandb logger
-    if USE_WANDB:
-        wandb_logger = WandbLogger(project = 'HyenaJumps',log_model="all")
+    if use_wandb:
+        wandb_logger = WandbLogger(project = 'ISS',log_model="all")
+        wandb_logger.watch(model, log="all", log_freq=10, log_graph=True)
     else:
         wandb_logger = None
 
     # Initialize Trainer and start training
     trainer = pl.Trainer(
         accelerator="auto",
-        max_epochs=config.epochs,
+        max_epochs=epochs,
         logger = wandb_logger,
         log_every_n_steps=10,
         default_root_dir = current_dir,
         callbacks = [checkpoint_callback]
     )
 
-    # summary(Model, input_size = x_data.size())
+    # summary(model, input_size = x_data.size())
 
     # if USE_WANDB:
-    #     wandb_logger.watch(Model, log="gradients", log_freq=50, log_graph=True)
+    #     wandb_logger.watch(model, log="gradients", log_freq=50, log_graph=True)
 
-    trainer.fit(Model)
-    trainer.test(Model)
+    trainer.fit(model)
+    trainer.test(model)
 
     # if USE_WANDB:
     #     wandb.finish()
 
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=10)
+    wandb.agent(sweep_id, function=train, count=50)
 
 
 

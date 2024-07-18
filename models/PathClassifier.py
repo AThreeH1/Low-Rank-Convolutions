@@ -22,15 +22,10 @@ Total_batches = 1000
 sequence_length = 500
 dim = 2
 data = DataGenerate(Total_batches, sequence_length, dim)
-# device = torch.device("cuda")
-
-USE_WANDB = True
-if USE_WANDB:
-    wandb.login(key = '7e169996e30d15f253a5f1d92ef090f2f3b948c4')
 
 sweep_config = {
 
-    'method': 'bayes',
+    'method': 'random',
 
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
     
@@ -45,7 +40,6 @@ sweep_config = {
     }
 }
 
-sweep_id = wandb.sweep(sweep_config, project='PathDev')
 
 ### FunctionClassifier
 class PathClassifier(pl.LightningModule):
@@ -132,17 +126,17 @@ class PathClassifier(pl.LightningModule):
 
         return {'test_accuracy': accuracy}
     
-def train():
+def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20):
     wandb.init()
     config = wandb.config
+    learning_rate = config.learning_rate
+    epochs = config.epochs
+    batch_size = config.batch_size
 
     # Convert data into tensors
     x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
     x_data = torch.tensor(x_datax, dtype=torch.float32)
     labels = torch.tensor([data_point[-1] for data_point in data])
-
-    Array_accuracy = []
-    Actual_labels = []
 
     # Assigning Values
     d_model = dim
@@ -151,19 +145,20 @@ def train():
     # Initialize HyenaOperator model
     PathD = PathDev(d)
     ffn = FFN(d**2)
-    Model = PathClassifier(PathD, ffn, x_data, labels, config.learning_rate, config.batch_size)
+    model = PathClassifier(PathD, ffn, x_data, labels, config.learning_rate, config.batch_size)
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
     # initiate wandb logger
-    if USE_WANDB:
-        wandb_logger = WandbLogger(project = 'PathDev',log_model="all")
+    if use_wandb:
+        wandb_logger = WandbLogger(project='ISS', log_model="all")
+        wandb_logger.watch(model, log="all", log_freq=10, log_graph=True)
     else:
         wandb_logger = None
 
     # Initialize Trainer and start training
     trainer = pl.Trainer(
-        accelerator="gpu",
+        accelerator="auto",
         max_epochs=config.epochs,
         logger = wandb_logger,
         log_every_n_steps=10,
@@ -171,15 +166,18 @@ def train():
         callbacks=[checkpoint_callback]
     )
 
-    # if USE_WANDB:
-    #     wandb_logger.watch(Model, log="gradients", log_freq=50, log_graph=True)
-
-    trainer.fit(Model)
-    trainer.test(Model)
+    trainer.fit(model)
+    trainer.test(model)
 
     # if USE_WANDB:
     #     wandb.finish()
 
+def run_sweep():
+    wandb.login() # Use wandb login procedure, instead of hardcoded API key.
+    sweep_id = wandb.sweep(sweep_config, project='ISS')
+    wandb.agent(sweep_id, function=train, count=50)
+
 if __name__ == "__main__":
-    wandb.agent(sweep_id, function=train, count=1)
+    run_sweep()
+    # train(use_wandb=False)
         

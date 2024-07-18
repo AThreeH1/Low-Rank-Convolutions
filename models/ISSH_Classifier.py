@@ -25,16 +25,17 @@ sequence_length = 500
 dim = 2
 jumps = 3
 data = task2(Total_batches, sequence_length, jumps)
-# device = torch.device("cuda")
-
 
 sweep_config = {
 
-    'method': 'bayes',
+    'method': 'random',
 
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
 
     'parameters': {
+
+        'order': {'values': [2, 4, 8, 12, 16]},
+ 
         'words': {'values': [2, 4, 6, 8, 12, 16, 20, 24]},
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
@@ -48,9 +49,10 @@ sweep_config = {
 
 # Define your model class
 class ISSHClassifier(pl.LightningModule):
-    def __init__(self, LowRank, FFN, input, target, learning_rate, batch_size):
+    def __init__(self, LowRank, Hyena, FFN, input, target, learning_rate, batch_size):
         super(ISSHClassifier, self).__init__()
         self.LowRank = LowRank
+        self.Hyena = Hyena
         self.FFN = FFN
         self.x_data = input
         self.target = target
@@ -59,6 +61,10 @@ class ISSHClassifier(pl.LightningModule):
 
     def forward(self, x):
         y = self.LowRank(x)
+        y = y.permute(0, 2, 1)
+        if self.Hyena:
+            y = self.Hyena(y)
+        y = y.permute(0, 2, 1)
         z = y[:, :, -1]
         out = self.FFN(z)
         return out
@@ -109,6 +115,7 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     if use_wandb:
         wandb.init()
         config = wandb.config
+        order = config.order
         words = config.words
         learning_rate = config.learning_rate
         epochs = config.epochs
@@ -119,20 +126,26 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     x_data = x_datax.permute(0, 2, 1)
     labels = torch.tensor([data_point[-1] for data_point in data])
 
+    # Assigning Values
+    d_model = config.words
+
     # Initialize the model with sweep parameters
     LowRank = LowRankModel(words)
 
+    def pass(x):
+        return x
+
     # TODO use this again. make order a hyperparameter; if order=0, then no Hyena (as it is done now)
-    #Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=8, dropout=0.0, filter_dropout=0.0)
+    Hyena = None if order == 0 else Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=order, dropout=0.0, filter_dropout=0.0)
     ffn = FFN(words)
-    model = ISSHClassifier(LowRank, ffn, x_data, labels, learning_rate, batch_size)
+    model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels, learning_rate, batch_size)
     # wandb_logger.watch seems to have a bug; it does not always log the graph; so, we print the model here (-> Logs in wandb)
     print(model)
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
     if use_wandb:
-        wandb_logger = WandbLogger(project='ISS', log_model="all")
+        wandb_logger = WandbLogger(project='ISSHJumps', log_model="all")
         wandb_logger.watch(model, log="all", log_freq=10, log_graph=True)
     else:
         wandb_logger = None
@@ -151,8 +164,8 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
 
 def run_sweep():
     wandb.login() # Use wandb login procedure, instead of hardcoded API key.
-    sweep_id = wandb.sweep(sweep_config, project='ISS')
-    wandb.agent(sweep_id, function=train, count=5)
+    sweep_id = wandb.sweep(sweep_config, project='ISSHJumps')
+    wandb.agent(sweep_id, function=train, count=100)
 
 if __name__ == "__main__":
     run_sweep()
