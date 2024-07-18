@@ -132,11 +132,11 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     # Initialize the model with sweep parameters
     LowRank = LowRankModel(words)
 
-    def pass(x):
-        return x
-
     # TODO use this again. make order a hyperparameter; if order=0, then no Hyena (as it is done now)
-    Hyena = None if order == 0 else Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=order, dropout=0.0, filter_dropout=0.0)
+    if order == 0:
+        Hyena = None
+    else:
+        Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=order, dropout=0.0, filter_dropout=0.0)
     ffn = FFN(words)
     model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels, learning_rate, batch_size)
     # wandb_logger.watch seems to have a bug; it does not always log the graph; so, we print the model here (-> Logs in wandb)
