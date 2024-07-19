@@ -83,7 +83,7 @@ class FNNnew(nn.Module):
         z = torch.tanh(self.fc1(x))
         z = self.fc2(z)
         y = torch.exp(self.a * x)
-        return z*y
+        return z
 
 
 class PathDevelopmentNetwork(nn.Module):
@@ -118,10 +118,14 @@ class PathDevelopmentNetwork(nn.Module):
         d = self.d
         T = x_data.size(1)
         bs = x_data.size(0)
-        f_arr = self.f(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
-        f_prime_arr = self.f_prime(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
-        g_arr = self.g(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
-        g_prime_arr = self.g_prime(torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()       
+
+        Time = torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)
+
+        f_arr = self.f(Time).squeeze().flip(0)
+        f_prime_arr = self.f_prime(Time).squeeze().flip(0)
+        g_arr = self.g(Time).squeeze()
+        g_prime_arr = self.g_prime(Time).squeeze() 
+        # print(f_arr)     
         
         f_arr = torch.nn.functional.pad(f_arr, (T-1, T-1))
         f_prime_arr = torch.nn.functional.pad(f_prime_arr, (T-1, T-1))
@@ -133,7 +137,7 @@ class PathDevelopmentNetwork(nn.Module):
         H_g_arr = torch.fft.fft(g_arr, dim=0)
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
 
-        tensor = self.path_dev(x_data.to(x_data.device))
+        tensor = self.path_dev(x_data)
 
         X = tensor[0]
         X_inv = tensor[1]
@@ -152,11 +156,12 @@ class PathDevelopmentNetwork(nn.Module):
         output = []
 
         for i in range(len(final_X)):
-            AA_fft_np = torch.fft.fft(final_X_inv[i].squeeze(), dim = -1)
-            AB_fft_np = torch.fft.fft(final_X[i].squeeze(), dim = -1)
 
-            AA_fft = torch.nn.functional.pad(AA_fft_np, (T-1, T-1))
-            AB_fft = torch.nn.functional.pad(AB_fft_np, (T-1, T-1))
+            AA_pad = torch.nn.functional.pad(final_X_inv[i].squeeze(), (T-1, T-1))
+            AB_pad = torch.nn.functional.pad(final_X[i].squeeze(), (T-1, T-1))
+
+            AA_fft = torch.fft.fft(AA_pad, dim = -1)
+            AB_fft = torch.fft.fft(AB_pad, dim = -1)
 
             AA_mul = AA_fft * H_f_arr
             AB_mul = AB_fft * H_g_arr

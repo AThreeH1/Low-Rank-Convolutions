@@ -34,7 +34,7 @@ sweep_config = {
 
     'parameters': {
 
-        'order': {'values': [2, 4, 8, 12, 16]},
+        'order': {'values': [0, 2, 4, 8, 12, 16]},
  
         'words': {'values': [2, 4, 6, 8, 12, 16, 20, 24]},
         

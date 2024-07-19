@@ -29,11 +29,27 @@ def ISS(x_data, a):
     '''
     bs = x_data.size(0)
     out = []
+    dims = x_data.size(1)
 
-    if a%2 == 0:
-        D1, D2 = x_data[:, 1, :]**((a/2) + 1), x_data[:, 0, :]
-    if a%2 == 1:
-        D1, D2 = x_data[:, 0, :], x_data[:, 1, :]**((a+1)/2)
+    if dims == 2:
+        if a%2 == 0:
+            D1, D2 = x_data[:, 1, :]**((a+2)/2), x_data[:, 0, :]
+        if a%2 == 1:
+            D1, D2 = x_data[:, 0, :]**((a+1)/2), x_data[:, 1, :]
+    
+    if dims == 3:
+        if a%6 == 0:
+            D1, D2 = x_data[:, 0, :]**((a+6)/6), x_data[:, 1, :]
+        if a%6 == 1:
+            D1, D2 = x_data[:, 1, :]**((a+5)/6), x_data[:, 2, :]
+        if a%6 == 2:
+            D1, D2 = x_data[:, 0, :]**((a+4)/6), x_data[:, 2, :]      
+        if a%6 == 3:
+            D1, D2 = x_data[:, 1, :]**((a+3)/6), x_data[:, 0, :]
+        if a%6 == 4:
+            D1, D2 = x_data[:, 2, :]**((a+2)/6), x_data[:, 1, :]
+        if a%6 == 5:
+            D1, D2 = x_data[:, 2, :]**((a+1)/6), x_data[:, 0, :]  
 
     T = D1.size(1) + 1
 
