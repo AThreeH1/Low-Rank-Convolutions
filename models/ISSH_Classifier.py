@@ -21,6 +21,7 @@ from models.LowRank import LowRankModel
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from functools import partial
+from datetime import datetime
 
 
 sweep_config = {
@@ -177,7 +178,6 @@ dim = 2
 jumps = 3
 data = task2(Total_batches, sequence_length, jumps)
 
-from datetime import datetime
 def run_sweep():
     wandb.login() # Use wandb login procedure, instead of hardcoded API key.
     sweep_config['name'] +=  datetime.now().strftime('-%Y-%m-%d-%H:%M')
