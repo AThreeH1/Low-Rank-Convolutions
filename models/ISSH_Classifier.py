@@ -151,7 +151,7 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
 
     if use_wandb:
         wandb_logger = WandbLogger(project='ISSHJumps', log_model="all")
-        wandb_logger.watch(model, log="all", log_freq=10, log_graph=True)
+        wandb_logger.watch(model, log="all", log_freq=1 if overfit else 10, log_graph=True)
     else:
         wandb_logger = None
 
@@ -159,7 +159,7 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
         accelerator="auto",
         max_epochs=epochs,
         logger=wandb_logger,
-        log_every_n_steps=10,
+        log_every_n_steps=1 if overfit else 10,
         default_root_dir=current_dir,
         callbacks=[checkpoint_callback]
     )
@@ -168,10 +168,13 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     trainer.test(model)
 
 OVERFIT = False
-Total_batches = 1000
-
 OVERFIT = True
-Total_batches = 10
+
+if OVERFIT:
+    Total_batches = 10
+    sweep_config['parameters']['batch_size']['values'] = [10]
+else:
+    Total_batches = 1000
 
 sequence_length = 500
 dim = 2

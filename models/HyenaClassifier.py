@@ -162,7 +162,7 @@ def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20, overfit
         accelerator="auto",
         max_epochs=epochs,
         logger = wandb_logger,
-        log_every_n_steps=10,
+        log_every_n_steps=1 if overfit else 10,
         default_root_dir = current_dir,
         callbacks = [checkpoint_callback]
     )
@@ -170,10 +170,14 @@ def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20, overfit
     trainer.test(model)
 
 OVERFIT = False
-Total_batches = 1000
-
 OVERFIT = True
-Total_batches = 10
+
+if OVERFIT:
+    Total_batches = 10
+    sweep_config['parameters']['batch_size']['values'] = [10]
+else:
+    Total_batches = 1000
+
 
 sequence_length = 500
 dim = 2
