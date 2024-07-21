@@ -20,6 +20,11 @@ def DataGenerate(net, sequence_length, dim):
     Generates data for task 1
 
     Args:
+        net = Total Batch Size
+        sequence_length = length of the entire signal(all dimensions)
+        dim = Total dimensions
+
+    Variables in code: 
         l = length of signal
         m = point selected at random at which the signal starts
         d[] = list of dimensions for sinosuidal waves
@@ -100,6 +105,10 @@ def SimpleDataGenerate(net, sequence_length):
     Generates priliminary data for task 1 signals and pointers
 
     Args:
+        net = Total Batch Size
+        sequence_length = length of the entire signal(all dimensions)
+    
+    Variables in code:
         l = length of signal
         m = point selected at random at which the signal starts, 0 in this case
         d[] = list of dimensions for sinosuidal waves
@@ -177,6 +186,10 @@ def task2(net, sequence_length, jumps):
     Generates data for task 2
 
     Args:
+        net = Total Batch Size
+        sequence_length = length of the entire signal(all dimensions)
+    
+    Variables:
         l = length of signal
         m = point selected at random at which the signal starts
         d1 and d2 = signal dimensions

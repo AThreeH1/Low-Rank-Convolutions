@@ -125,6 +125,9 @@ class LowRankModel(nn.Module):
             And chens identity for ISS = ... rank 3
 
             args:
+                words = Number of words to be used to apply ISS
+            
+            Variables in code:
                 bs = batch size
                 T = sequence length or the span of t
                 f, g, f_prime, etc = Components of h

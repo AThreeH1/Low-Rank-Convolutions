@@ -11,9 +11,11 @@ class PathDev(nn.Module):
         X_{0,s} = X_{0,s-1} * X_{s-1,s}
 
         args:
+            d = length/height of matrix X
+
+        Variables in code:
             A1 and A2 = parameterised matrices
             T = Sequence length
-            d = length/height of matrix X
             A & B = X & X^-1 resp.
 
         output:
@@ -94,9 +96,11 @@ class PathDevelopmentNetwork(nn.Module):
         X_{s,s'} = (X_{0,s})^-1 * X_{0,s'}
 
         args:
+            d = length/height of matrix X
+
+        Variables in code:
             bs = Batch size
             T = Sequence length
-            d = length/height of matrix X
             AA, AB, BA, etc = Low rank components
 
         output:
