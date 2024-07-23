@@ -31,25 +31,15 @@ def ISS(x_data, a):
     out = []
     dims = x_data.size(1)
 
-    if dims == 2:
-        if a%2 == 0:
-            D1, D2 = x_data[:, 1, :]**((a+2)/2), x_data[:, 0, :]
-        if a%2 == 1:
-            D1, D2 = x_data[:, 0, :]**((a+1)/2), x_data[:, 1, :]
-    
-    if dims == 3:
-        if a%6 == 0:
-            D1, D2 = x_data[:, 0, :]**((a+6)/6), x_data[:, 1, :]
-        if a%6 == 1:
-            D1, D2 = x_data[:, 1, :]**((a+5)/6), x_data[:, 2, :]
-        if a%6 == 2:
-            D1, D2 = x_data[:, 0, :]**((a+4)/6), x_data[:, 2, :]      
-        if a%6 == 3:
-            D1, D2 = x_data[:, 1, :]**((a+3)/6), x_data[:, 0, :]
-        if a%6 == 4:
-            D1, D2 = x_data[:, 2, :]**((a+2)/6), x_data[:, 1, :]
-        if a%6 == 5:
-            D1, D2 = x_data[:, 2, :]**((a+1)/6), x_data[:, 0, :]  
+    possible_combinations = dims*(dims-1)
+    power = (a//possible_combinations) + 1
+    a = a%possible_combinations
+    i = a // (dims - 1)
+    j = a % (dims - 1)
+    if j >= i:
+        j += 1
+    D1, D2 = x_data[:, i, :]**power, x_data[:, j, :]
+
 
     T = D1.size(1) + 1
 
@@ -73,20 +63,6 @@ def ISS(x_data, a):
 
     return out
 
-
-def super_brute_force_two_letter_ISS(x_data, w):
-    '''
-        For 0 < t (in python indexing)
-            \sum_{-1 < r1 < r2 <= t} x^{(w_1)}_{r1} x^{(w_2)}_{r2}
-    '''
-    bs, d, T = x_data.size()
-    tmp = torch.zeros(bs, T)
-    for t in range(4, T):
-        for r1 in range(2, t):
-            for r2 in range(r1+1, t):
-                tmp[:, t] += x_data[:, w[0], r1] * x_data[:, w[1], r2]
-    return tmp
-
 # Define the FNN class
 class FNNnew(nn.Module):
     def __init__(self):
@@ -101,13 +77,14 @@ class FNNnew(nn.Module):
         # Bias of the last layer = 1
         nn.init.ones_(self.fc2.bias)
 
-        self.a = -50
+        self.a = nn.Parameter(torch.tensor(-5.0))
+
 
     def forward(self, x):
         z = torch.tanh(self.fc1(x))
         z = self.fc2(z)
         y = torch.exp(self.a * x)
-        return z*y
+        return z
 
 # Function to perform convolution
 def convolve_sequences(h_fft, f_fft):
@@ -150,8 +127,8 @@ class LowRankModel(nn.Module):
         words = self.words
         T = x_data.size(2)
         bs = x_data.size(0)
-        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
-        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
+        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
+        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
         g_arr = self.g(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
         g_prime_arr = self.g_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()       
         
@@ -214,10 +191,19 @@ def h(T_s, T_s_prime, f, g, f_prime, g_prime):
     T_s_prime = torch.tensor([[T_s_prime]], dtype=torch.float32)  
     
     # Compute f(T-s), g(T-s'), f'(T-s), g'(T-s')
-    f_T_s = f(T_s)
-    g_T_s_prime = g(T_s_prime)
-    f_prime_T_s = f_prime(T_s)
-    g_prime_T_s_prime = g_prime(T_s_prime)
+    if T_s >= 0:
+        f_T_s = f(T_s)
+        f_prime_T_s = f_prime(T_s)
+    else:
+        f_T_s = torch.tensor([0.0])
+        f_prime_T_s = torch.tensor([0.0])
+
+    if T_s_prime >= 0:
+        g_T_s_prime = g(T_s_prime)
+        g_prime_T_s_prime = g_prime(T_s_prime)
+    else:
+        g_T_s_prime = torch.tensor([0.0])
+        g_prime_T_s_prime = torch.tensor([0.0]) 
     
     # Compute h(T-s, T-s') = f(T-s)g(T-s') + f'(T-s)g'(T-s')
     h_value = f_T_s * g_T_s_prime + f_prime_T_s * g_prime_T_s_prime
@@ -225,17 +211,15 @@ def h(T_s, T_s_prime, f, g, f_prime, g_prime):
     return h_value.item()
 
 def super_brute_force_LowRank(x_data, words):
+
     f = FNNnew()
-    # set_seed(f)
     g = FNNnew()
-    # set_seed(g)
     f_prime = FNNnew()
-    # set_seed(f_prime)
     g_prime = FNNnew()
-    # set_seed(g_prime)
+
     bs,_,T = x_data.size()
     T += 1
-    out = torch.zeros([3, words, T], device=x_data.device)
+    out = torch.zeros([bs, words, T], device=x_data.device)
 
 
     for bs in range(bs):
@@ -244,67 +228,50 @@ def super_brute_force_LowRank(x_data, words):
                 total_sum = 0
                 for s in range(T):
                     for s_prime in range(T):
-                        if t>= s and t>=s_prime:
-                            h_value = h(s, t-s_prime, f, g, f_prime, g_prime)
-                            Array = ISS(x_data, k)
-                            Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
-                            total_sum += h_value * Z
-                        if t< s and t<s_prime:
-                            h_value = h(s, T+(t-s_prime), f, g, f_prime, g_prime)
-                            Array = ISS(x_data, k) 
-                            Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
-                            total_sum += h_value * Z
-                        if t>= s and t<s_prime:
-                            h_value = h(s, T+(t-s_prime), f, g, f_prime, g_prime)
-                            Array = ISS(x_data, k) 
-                            Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
-                            total_sum += h_value * Z
-                        if t< s and t>=s_prime:
-                            h_value = h(s, t-s_prime, f, g, f_prime, g_prime)
-                            Array = ISS(x_data, k) 
-                            Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
-                            total_sum += h_value * Z
+
+                        h_value = h(t-s, t-s_prime, f, g, f_prime, g_prime)
+                        Array = ISS(x_data, k)
+                        Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
+                        total_sum += h_value * Z
+
                 # Store the output
                 out[bs][k][t] = 0.5*total_sum
     return out
 
 def test_ISS():
-    # torch.manual_seed(42)
     X = torch.randn(3, 2, 10)
     dX = torch.diff(X, dim=-1,prepend=torch.zeros(3,2,1))
-    # dX = torch.tensor([[[1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1]]])
-    ret = ISS( dX, 0 )
-    # print(ret)
-    a,b,c,d = ret[0]
+
     ##
     # k_{s,t} = a_s \otimes 1_t + b_s \otimes c_t + 1_s \otimes d_t
     ##
-    # print(ret)
-    retF = torch.zeros(3, 6)
-    for i in range(4, dX.size(2)):
-        for j in range(a.size(0)):
-            retF[j][i-4] = (a[j][2] + b[j][2] * c[j][i] + d[j][i])
-
-    # retF = d[:-1]
-
-    # Test brute force:
-    # ret2 = super_brute_force_two_letter_ISS(dX, [1, 0])
-    # ret2 = ret2[:, 4:]
-    # print(retF, 'RetF')
-    # print(ret2, 'ret2')
-    # assert torch.allclose(ret1, ret2)
-    # assert torch.allclose( retF, ret2 ) 
 
     words = 4
     model = LowRankModel(words)   
     LowR1 = model(dX)
-
-    # print('LowR1 = ', LowR1)
+    
     LowR2 = super_brute_force_LowRank(dX, words)
 
-    # print('LowR2 = ', LowR2)
     assert torch.allclose(LowR1, LowR2, atol=10**-3)
 
 # if main
 if __name__ == '__main__':
     test_ISS()
+
+
+
+
+
+
+# def super_brute_force_two_letter_ISS(x_data, w):
+#     '''
+#         For 0 < t (in python indexing)
+#             \sum_{-1 < r1 < r2 <= t} x^{(w_1)}_{r1} x^{(w_2)}_{r2}
+#     '''
+#     bs, d, T = x_data.size()
+#     tmp = torch.zeros(bs, T)
+#     for t in range(4, T):
+#         for r1 in range(2, t):
+#             for r2 in range(r1+1, t):
+#                 tmp[:, t] += x_data[:, w[0], r1] * x_data[:, w[1], r2]
+#     return tmp
