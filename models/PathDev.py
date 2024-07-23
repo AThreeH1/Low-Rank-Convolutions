@@ -125,8 +125,8 @@ class PathDevelopmentNetwork(nn.Module):
 
         Time = torch.arange(T, dtype=torch.float32).view(-1, 1).to(x_data.device)
 
-        f_arr = self.f(Time).squeeze().flip(0)
-        f_prime_arr = self.f_prime(Time).squeeze().flip(0)
+        f_arr = self.f(Time).squeeze()
+        f_prime_arr = self.f_prime(Time).squeeze()
         g_arr = self.g(Time).squeeze()
         g_prime_arr = self.g_prime(Time).squeeze() 
         # print(f_arr)     
