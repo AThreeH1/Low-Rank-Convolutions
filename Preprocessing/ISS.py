@@ -15,7 +15,7 @@ from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate
-from models.LowRank import ISS
+from Preprocessing.LowRank import ISS
 from data.datagenerator import SimpleDataGenerate
 
 class FFN(pl.LightningModule):

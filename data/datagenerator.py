@@ -10,10 +10,6 @@ sys.path.append(parent_dir)
 
 from utils.imports import *
 
-
-import random
-import numpy as np
-
 def DataGenerate(net, sequence_length, dim):
 
     """
