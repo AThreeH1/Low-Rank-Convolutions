@@ -68,7 +68,6 @@ class HyenaClassifier(pl.LightningModule):
 
     def forward(self,x):
         y = self.Hyena(x)
-        # z = rearrange(y, 'b l d -> b (l d)')
         z = y[:,-1,:]
         out = self.FFN(z)
         return out

@@ -16,8 +16,7 @@ from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate
 from data.datagenerator import task2
-# from Preprocessing.ISS import LowRankModel
-from Preprocessing.LowRank import LowRankModel
+from Preprocessing.ISS import LowRankModel
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from functools import partial
