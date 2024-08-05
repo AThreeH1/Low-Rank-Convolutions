@@ -42,7 +42,7 @@ class PathDev(nn.Module):
         return X
 
     def SP(X: torch.tensor, J: torch.tensor) -> torch.tensor:
-        """ parametrise real symplectic lie algebra from the gneal linear matrix X
+        """ symplectic transformation
 
         Args:
             X (torch.tensor): (...,2n,2n)
@@ -73,8 +73,18 @@ class PathDev(nn.Module):
             A2 = self.SE(self.A2)   
 
         elif self.linalg == 'SP':
-            A1 = self.SP(self.A1)
-            A2 = self.SP(self.A2)     
+            N = (A1.size(-1))/2
+            if N%2 == 0:
+                neg_I = -torch.diag(torch.ones(int(N/2)))
+                pos_I = torch.diag(torch.ones(int(N/2)))
+                J = torch.zeros(N, N)
+                J[:int(N/2), int(N/2):] = pos_I
+                J[int(N/2):, :int(N/2)] = neg_I    
+                A1 = self.SP(self.A1, J)
+                A2 = self.SP(self.A2, J)
+            else:
+                raise ValueError(
+                    'size of symplectic lie algebra matrix needs to be an even number')     
         
         else:
             return "Undefined lie group"
