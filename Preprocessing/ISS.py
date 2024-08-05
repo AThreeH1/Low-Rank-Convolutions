@@ -68,9 +68,11 @@ class FNNnew(nn.Module):
         self.fc1 = nn.Linear(1, 5)
         self.fc2 = nn.Linear(5, 1)
     
-        nn.init.zeros_(self.fc1.weight)
+        nn.init.normal_(self.fc1.weight, mean=0, std=0.01)
+        # nn.init.zeros_(self.fc1.weight)
         nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.weight)
+        nn.init.normal_(self.fc1.weight, mean=0, std=0.01)
+        # nn.init.zeros_(self.fc2.weight)
         
         # Bias of the last layer = 1
         nn.init.ones_(self.fc2.bias)
@@ -82,7 +84,8 @@ class FNNnew(nn.Module):
         z = torch.tanh(self.fc1(x))
         z = self.fc2(z)
         y = torch.exp(self.a * x)
-        return z
+        # print(self.a)
+        return z*y
 
 # Function to perform convolution
 def convolve_sequences(h_fft, f_fft):

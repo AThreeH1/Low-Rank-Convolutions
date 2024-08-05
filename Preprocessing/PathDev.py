@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class PathDev(nn.Module):
-    def __init__(self, d):
+    def __init__(self, d, liegroup):
 
         """
         X_{s-1,s} = exp(Sum_{i = 0 to dims}(A_i * Z_i[s]))
@@ -10,6 +10,7 @@ class PathDev(nn.Module):
 
         args:
             d = length/height of matrix X
+            liegroup = Matrix Lie group in use
 
         Variables in code:
             A1 and A2 = parameterised matrices
@@ -23,19 +24,60 @@ class PathDev(nn.Module):
 
         super(PathDev, self).__init__()
         self.d = d
+        self.liegroup = liegroup
         # Initialize two learnable dxd matrices
         # self.A1 = nn.Parameter(torch.tensor([[1.00,2.00,3.00],[4.00,5.00,6.00],[7.00,8.00,9.00]]))
         # self.A2 = nn.Parameter(torch.tensor([[1.00,2.00,3.00],[4.00,5.00,6.00],[7.00,8.00,9.00]]))     
         self.A1 = nn.Parameter(torch.randn(d, d))
         self.A2 = nn.Parameter(torch.randn(d, d))
 
+    def SE(self, X):
+        a, b, d, d = X.shape
+        so = X[..., :-1, :-1] - X[..., :-1, :-1].T
+
+        X = torch.cat(
+            (torch.cat((so, X[..., :-1, -1].unsqueeze(-1)), dim=3
+                    ), torch.zeros((a, b, 1, d)).to(X.device)), dim=2)
+
+        return X
+
+    def SP(X: torch.tensor, J: torch.tensor) -> torch.tensor:
+        """ parametrise real symplectic lie algebra from the gneal linear matrix X
+
+        Args:
+            X (torch.tensor): (...,2n,2n)
+            J (torch.tensor): (2n,2n), symplectic operator [[0,I],[-I,0]]
+
+        Returns:
+            torch.tensor: (...,2n,2n)
+        """
+        X = (X + X.transpose(-2, -1))/2
+
+        return X.matmul(J.T)
+
+    def SO(self, X):
+        X = X - X.T
+        return X
+
     def forward(self, Z):
         batch_size, seq_length, dimension = Z.size()
         assert dimension == 2, "Dimension should be 2 to match A1 and A2 matrices."
-        # Ensure A1 and A2 are anti-symmetric
-        A1 = self.A1 - self.A1.T
-        A2 = self.A2 - self.A2.T
         
+        # Ensure A1 and A2 are anti-symmetric
+        if self.liegroup == 'SO':
+            A1 = self.SO(self.A1)
+            A2 = self.SO(self.A2)
+
+        elif self.liegroup == 'SE':
+            A1 = self.SE(self.A1)
+            A2 = self.SE(self.A2)   
+
+        elif self.linalg == 'SP':
+            A1 = self.SP(self.A1)
+            A2 = self.SP(self.A2)     
+        
+        else:
+            return "Undefined lie group"
         # Initialize X_0 as the identity matrix
         X = torch.eye(self.d).unsqueeze(0).repeat(batch_size, 1, 1).to(Z.device)
         # Output container
@@ -83,11 +125,11 @@ class FNNnew(nn.Module):
         z = torch.tanh(self.fc1(x))
         z = self.fc2(z)
         y = torch.exp(self.a * x)
-        return z
+        return z*y
 
 
 class PathDevelopmentNetwork(nn.Module):
-    def __init__(self, d):
+    def __init__(self, d, liegroup):
         """
         Sum_{s,s'}(h(t-s, t-s') * X_{s,s'})
         h(s,s') = f(s).g(s') + f'(s).g'(s')
@@ -113,8 +155,9 @@ class PathDevelopmentNetwork(nn.Module):
         self.f_prime = FNNnew()
         self.g_prime = FNNnew()
 
-        self.path_dev = PathDev(d)
+        self.path_dev = PathDev(d, liegroup)
         self.d = d
+        self.liegroup = liegroup
 
     def forward(self, x_data):
         d = self.d
@@ -126,8 +169,7 @@ class PathDevelopmentNetwork(nn.Module):
         f_arr = self.f(Time).squeeze()
         f_prime_arr = self.f_prime(Time).squeeze()
         g_arr = self.g(Time).squeeze()
-        g_prime_arr = self.g_prime(Time).squeeze() 
-        # print(f_arr)     
+        g_prime_arr = self.g_prime(Time).squeeze()     
         
         f_arr = torch.nn.functional.pad(f_arr, (T-1, T-1))
         f_prime_arr = torch.nn.functional.pad(f_prime_arr, (T-1, T-1))
@@ -185,7 +227,7 @@ class PathDevelopmentNetwork(nn.Module):
         concatenated_tensor = torch.cat(output_f, dim=2)
 
         # Reshape the concatenated tensor 
-        final = concatenated_tensor.view(a, b, 3, 3)
+        final = concatenated_tensor.view(a, b, d, d)
 
         return final.real
 
@@ -195,12 +237,13 @@ def brute_force_path_dev(Z):
     A2 = torch.tensor([[1,2,3],[4,5,6],[7,8,9]]) 
     A1 = A1 - A1.T 
     A2 = A2 - A2.T
-    return torch.matrix_exp(A1 * (Z[:,1,0].unsqueeze(-1).unsqueeze(-1)) + A2 * (Z[:,1,1].unsqueeze(-1).unsqueeze(-1)))
+    X = torch.matrix_exp(A1 * (Z[:,1,0].unsqueeze(-1).unsqueeze(-1)) + A2 * (Z[:,1,1].unsqueeze(-1).unsqueeze(-1)))
+    return X
 
 
 # Example usage
 if __name__ == "__main__":
-    d = 3
+    d = 4
     total_batches = 3
     seq_length = 100
     dimension = 2
@@ -210,7 +253,7 @@ if __name__ == "__main__":
     Z = torch.randn(total_batches, seq_length, dimension)
 
     # Initialize the model
-    model = PathDevelopmentNetwork(d)
+    model = PathDevelopmentNetwork(d, 'SO')
 
     # Get the output
     output = model(Z)
@@ -219,10 +262,10 @@ if __name__ == "__main__":
 
     X1_brute = brute_force_path_dev(Z)
     # print(X1_brute)
-    path_dev = PathDev(d)
+    path_dev = PathDev(d, 'SO')
     X1_path_dev = path_dev(Z)[0][:,1,:,:]
     # print(X1_path_dev)
 
 
-    # Please set A1 and A2 to the manual tensors before running the assertion 
+    # Please set A1 and A2 to the commented tensors before running the assertion 
     # assert torch.allclose(X1_brute, X1_path_dev)

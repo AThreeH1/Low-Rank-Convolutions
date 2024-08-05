@@ -26,7 +26,7 @@ from datetime import datetime
 sweep_config = {
     'name' : 'sweep',
 
-    'method': 'random',
+    'method': 'bayes',
 
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
 
@@ -39,19 +39,21 @@ sweep_config = {
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
        
-        'epochs': {'values': [10, 20, 30, 40, 50, 100, 200]},
+        'epochs': {'values': [10]}, #, 20, 30, 40, 50, 100, 200
 
-        # 'batch_size': {'values': [20, 40, 60, 80]}
-        'batch_size': {'values': [1, 2, 4, 8, 16, 32, 64, 128]}
+        'batch_size': {'values': [20, 40, 60, 80]},
+        # 'batch_size': {'values': [1, 2, 4, 8, 16, 32, 64, 128]},
+
+        'layers' : {'values': [1, 2, 3, 4]}
     }
 }
 
 
 # Define your model class
 class ISSHClassifier(pl.LightningModule):
-    def __init__(self, LowRank, Hyena, FFN, input, target, learning_rate, batch_size, overfit=False):
+    def __init__(self, LowRank, Hyena, FFN, input, target, learning_rate, batch_size, words, layers, overfit=False):
         super(ISSHClassifier, self).__init__()
-        self.LowRank = LowRank
+        # self.LowRank = LowRank
         self.Hyena = Hyena
         self.FFN = FFN
         self.x_data = input
@@ -59,10 +61,12 @@ class ISSHClassifier(pl.LightningModule):
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.overfit = overfit
+        self.layers = nn.ModuleList([LowRank(words) for _ in range(layers)])
 
     def forward(self, x):
-        y = self.LowRank(x)
-        y = y.permute(0, 2, 1)
+        for layer in self.layers:
+            x = layer(x)
+        y = x.permute(0, 2, 1)
         if self.Hyena:
             y = self.Hyena(y)
         y = y.permute(0, 2, 1)
@@ -125,6 +129,7 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
         learning_rate = config.learning_rate
         epochs = config.epochs
         batch_size = config.batch_size
+        layers = config.layers
 
     # Convert data into tensors
     x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data], dtype=torch.float32)
@@ -135,14 +140,14 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     d_model = config.words
 
     # Initialize the model with sweep parameters
-    LowRank = LowRankModel(words)
+    LowRank = LowRankModel
 
     if order == 0:
         Hyena = None
     else:
         Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=order, dropout=0.0, filter_dropout=0.0)
     ffn = FFN(words)
-    model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels, learning_rate, batch_size, overfit=overfit)
+    model = ISSHClassifier(LowRank, Hyena, ffn, x_data, labels, learning_rate, batch_size, words, layers, overfit=overfit)
     # wandb_logger.watch seems to have a bug; it does not always log the graph; so, we print the model here (-> Logs in wandb)
     print(model)
 
@@ -167,7 +172,7 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     trainer.test(model)
 
 OVERFIT = False
-OVERFIT = True
+# OVERFIT = True
 
 if OVERFIT:
     Total_batches = 10
@@ -182,11 +187,12 @@ data = task2(Total_batches, sequence_length, jumps)
 
 def run_sweep():
     wandb.login() # Use wandb login procedure, instead of hardcoded API key.
+    sweep_config['name'] +=  'J' + str(jumps)
     sweep_config['name'] +=  datetime.now().strftime('-%Y-%m-%d-%H:%M')
     if OVERFIT:
         sweep_config['name'] += '-overfit'
     sweep_id = wandb.sweep(sweep_config, project='ISSHJumps')
-    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=100)
+    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=1)
 
 if __name__ == "__main__":
     run_sweep()

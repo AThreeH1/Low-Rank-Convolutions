@@ -45,8 +45,6 @@ class FFNClassifier(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
-        # scheduler = StepLR(optimizer, step_size=1) 
-        # "lr_scheduler": scheduler
         return {"optimizer": optimizer}
 
     def training_step(self, batch, batch_idx):
@@ -86,9 +84,6 @@ class FFNClassifier(pl.LightningModule):
 
         return {'test_accuracy': accuracy}
 
-
-
-# device = torch.device("cuda")
 
 # Convert data into tensors
 x_datax = torch.tensor([[[a, b] for a, b in zip(idata[0], idata[1])] for idata in data])

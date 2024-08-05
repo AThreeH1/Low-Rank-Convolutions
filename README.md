@@ -1,4 +1,5 @@
-# HyenaVsMHA
+# Low Rank Implementation of Iterative Sums Signatures and Path Development Network
+
 An experiment designed to test Hyena Hierarchy with respect to the Multi-Head Attention Model. Training of Hyena is done with the target set as outputs from MHA(Multi-Head Attention) at different orders to see at what parameters the Hyena performs similar to MHA, given that MHA is a quadratic time computation while Hyena is semi-quadratic.
 
 To run the code provided in the repository please follow the following steps:

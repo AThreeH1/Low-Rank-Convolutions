@@ -18,12 +18,11 @@ from data.datagenerator import DataGenerate, task2
 from data.datagenerator import SimpleDataGenerate
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-Total_batches = 1000
-sequence_length = 100
-jumps = 1
-data = task2(Total_batches, sequence_length, jumps)
+from functools import partial
+from datetime import datetime
 
 sweep_config = {
+    'name' : 'sweep',
 
     'method': 'bayes',
 
@@ -31,11 +30,20 @@ sweep_config = {
     
     'parameters': {
         
+        # 'order': {'values': [0, 2, 4, 8, 12, 16]},
+        'order': {'values': [0]},
+
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
         
         'epochs': {'values': [10]},
 
-        'batch_size': {'values': [20, 40, 60, 80]}
+        'batch_size': {'values': [20, 40, 60, 80]},
+        
+        'd' : {'values': [3, 4, 5]},
+
+        'liegroup' : {'values': ['SO', 'SE', 'SP']},
+
+        'layers' : {'values': [1, 2, 3, 4]}
         
     }
 }
@@ -46,50 +54,61 @@ class PathClassifier(pl.LightningModule):
     def __init__(
             self,
             PathD,
+            Hyena,
             FFN,
             input,
             target,
             learning_rate,
-            batch_size
+            batch_size,
+            d,
+            liegroup,
+            layers,
+            overfit=False
         ):
         super(PathClassifier, self).__init__()
         self.FFN = FFN
-        self.PathD = PathD
+        # self.PathD = PathD
+        self.Hyena = Hyena
         self.x_data = input
         self.target = target
         self.learning_rate = learning_rate
         self.batch_size = batch_size
+        self.overfit = overfit
+        self.layers = nn.ModuleList([PathD(d, liegroup) for _ in range(layers)])
 
     def forward(self,x):
-        y = self.PathD(x)
+        for layer in self.layers:
+            x = self.PathD(x)
         # p = y.permute(0, 2, 1)
         # q = self.Hyena(p)
-        a, b, _, _ = y.shape
-        k = y.view(a, b, 9)
+        a, b, d, _ = x.shape
+        k = x.view(a, b, d**2)
         z = k[:,-1,:]
-        z1 = z.view(a, 9)
+        z1 = z.view(a, d**2)
         zf = z1.float()
         out = self.FFN(zf)
         return out
 
     def prepare_data(self):
         total_dataset = TensorDataset(self.x_data, self.target)
-        train_size = int(0.8 * len(total_dataset))
-        test_size = len(total_dataset) - train_size
-        self.train_dataset, self.test_dataset = random_split(total_dataset, [train_size, test_size])
+        if self.overfit:
+            self.train_dataset = total_dataset
+            self.test_dataset = total_dataset
+        else:
+            train_size = int(0.8 * len(total_dataset))
+            test_size = len(total_dataset) - train_size
+            self.train_dataset, self.test_dataset = random_split(total_dataset, [train_size, test_size])
 
     def train_dataloader(self):
-        train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=23)
+        train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=4)
         return train_loader
 
     def test_dataloader(self):
-        test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=23)
+        test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=4)
         return test_loader
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr= self.learning_rate)
-        # scheduler = StepLR(optimizer, step_size=1) 
-        # "lr_scheduler": scheduler
         return {"optimizer": optimizer}
 
     def training_step(self, batch, batch_idx):
@@ -102,11 +121,10 @@ class PathClassifier(pl.LightningModule):
         accuracy = correct / target.size(0)
 
         # Log training accuracy
-        self.log("train_accuracy", accuracy, on_step=True, on_epoch=True, prog_bar=True, logger = True)
+        self.log("train_accuracy", accuracy, on_step=True, on_epoch=True, prog_bar=True)
 
         loss = F.cross_entropy(output, target)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        # return loss
         return {'loss': loss}
 
     def test_step(self, batch, batch_idx):
@@ -125,13 +143,19 @@ class PathClassifier(pl.LightningModule):
         self.log("test_accuracy", accuracy, on_step=False, on_epoch=True)
 
         return {'test_accuracy': accuracy}
-    
-def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20):
-    wandb.init()
-    config = wandb.config
-    learning_rate = config.learning_rate
-    epochs = config.epochs
-    batch_size = config.batch_size
+
+# Training function to use wandb sweep   
+def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20, overfit=False):
+    if use_wandb:
+        wandb.init()
+        config = wandb.config
+        order = config.order
+        learning_rate = config.learning_rate
+        epochs = config.epochs
+        batch_size = config.batch_size
+        d = config.d
+        liegroup = config.liegroup
+        layers = config.layers
 
     # Convert data into tensors
     x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
@@ -140,28 +164,33 @@ def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20):
 
     # Assigning Values
     d_model = 2
-    d = 3
 
-    # Initialize HyenaOperator model
-    PathD = PathDevelopmentNetwork(d)
+    # Initialize models
+    PathD = PathDevelopmentNetwork
+
+    if order == 0:
+        Hyena = None
+    else:
+        Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=order, dropout=0.0, filter_dropout=0.0)
     ffn = FFN(d**2)
-    model = PathClassifier(PathD, ffn, x_data, labels, config.learning_rate, config.batch_size)
+    model = PathClassifier(PathD, Hyena, ffn, x_data, labels, learning_rate, batch_size, d, liegroup, layers, overfit=overfit)
+    print(model)
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
 
     # initiate wandb logger
     if use_wandb:
-        wandb_logger = WandbLogger(project='ISS', log_model="all")
-        wandb_logger.watch(model, log="all", log_freq=10, log_graph=True)
+        wandb_logger = WandbLogger(project='PathJumps', log_model="all")
+        wandb_logger.watch(model, log="all", log_freq=1 if overfit else 10, log_graph=True)
     else:
         wandb_logger = None
 
     # Initialize Trainer and start training
     trainer = pl.Trainer(
         accelerator="auto",
-        max_epochs=config.epochs,
+        max_epochs=epochs,
         logger = wandb_logger,
-        log_every_n_steps=10,
+        log_every_n_steps=1 if overfit else 10,
         default_root_dir = current_dir,
         callbacks=[checkpoint_callback]
     )
@@ -169,13 +198,27 @@ def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20):
     trainer.fit(model)
     trainer.test(model)
 
-    # if USE_WANDB:
-    #     wandb.finish()
+OVERFIT = False
+# OVERFIT = True
+
+if OVERFIT:
+    Total_batches = 10
+    sweep_config['parameters']['batch_size']['values'] = [10]
+else:
+    Total_batches = 1000
+
+sequence_length = 500
+jumps = 1
+data = task2(Total_batches, sequence_length, jumps)
 
 def run_sweep():
     wandb.login() # Use wandb login procedure, instead of hardcoded API key.
-    sweep_id = wandb.sweep(sweep_config, project='ISS')
-    wandb.agent(sweep_id, function=train, count=20)
+    sweep_config['name'] +=  'J' + str(jumps)
+    sweep_config['name'] +=  datetime.now().strftime('-%Y-%m-%d-%H:%M')
+    if OVERFIT:
+        sweep_config['name'] += '-overfit'
+    sweep_id = wandb.sweep(sweep_config, project='PathJumps')
+    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=1)
 
 if __name__ == "__main__":
     run_sweep()
