@@ -28,6 +28,7 @@ def ISS(x_data, a):
     bs = x_data.size(0)
     out = []
     dims = x_data.size(1)
+    # x_data = torch.diff(x_data, dim=-1,prepend=torch.zeros(bs,dims,1, device = x_data.device))
 
     possible_combinations = dims*(dims-1)
     power = (a//possible_combinations) + 1
@@ -77,7 +78,7 @@ class FNNnew(nn.Module):
         # Bias of the last layer = 1
         nn.init.ones_(self.fc2.bias)
 
-        self.a = nn.Parameter(torch.tensor(-5.0))
+        self.a = nn.Parameter(torch.tensor(-1.0))
 
 
     def forward(self, x):
@@ -128,8 +129,8 @@ class LowRankModel(nn.Module):
         words = self.words
         T = x_data.size(2)
         bs = x_data.size(0)
-        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
-        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
+        f_arr = self.f(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
+        f_prime_arr = self.f_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze().flip(0)
         g_arr = self.g(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()
         g_prime_arr = self.g_prime(torch.arange(T+1, dtype=torch.float32).view(-1, 1).to(x_data.device)).squeeze()       
         
@@ -145,7 +146,7 @@ class LowRankModel(nn.Module):
         H_f_prime_arr = torch.fft.fft(f_prime_arr, dim=0)
         H_g_arr = torch.fft.fft(g_arr, dim=0)
         H_g_prime_arr = torch.fft.fft(g_prime_arr, dim=0)
-        H_ones = torch.fft.fft(ones, dim=0).reshape(1, 3*T+1)
+        H_ones = torch.fft.fft(ones, dim=0).reshape(3*T+1)
 
         output_seq = torch.zeros((bs, words, 3*T+1), device=x_data.device, dtype=torch.complex64)
 
@@ -166,7 +167,7 @@ class LowRankModel(nn.Module):
             # Apply FFT to all elements in the batch
             ISS_sum_fft = torch.fft.fft(ISS_sum, dim=-1)
             Consicutive_Sum_D1_fft = torch.fft.fft(Consicutive_Sum_D1, dim=-1)
-            Consicutive_Sum_D2_fft = torch.fft.fft(Consicutive_Sum_D2, dim=-1)
+            Consicutive_Sum_D2_fft = torch.fft.fft(Consicutive_Sum_D2, dim=-1) 
             ISS_D1_fft = torch.fft.fft(ISS_D1, dim=-1)
 
             # Perform batched convolution and accumulate results
@@ -182,6 +183,7 @@ class LowRankModel(nn.Module):
             EB = convolve_sequences(H_g_arr, ISS_D1_fft)
             FA = convolve_sequences(H_f_prime_arr, H_ones)
             FB = convolve_sequences(H_g_prime_arr, ISS_D1_fft)
+            # print('AA', AA, 'AB', AB, 'BA', BA, 'BB', BB)
             output_seq[:, k, :] = 0.5*((AA * AB) + (BA * BB) + (CA * CB) + (DA * DB) + (EA * EB) + (FA * FB))
         output_seq = output_seq.real
         return output_seq[:,:,2*T:]
@@ -234,7 +236,6 @@ def super_brute_force_LowRank(x_data, words):
                         Array = ISS(x_data, k)
                         Z = Array[0][0][bs][s] + Array[0][1][bs][s]*Array[0][2][bs][s_prime] + Array[0][3][bs][s_prime]
                         total_sum += h_value * Z
-
                 # Store the output
                 out[bs][k][t] = 0.5*total_sum
     return out
@@ -250,8 +251,10 @@ def test_ISS():
     words = 4
     model = LowRankModel(words)   
     LowR1 = model(dX)
+    print(LowR1)
     
     LowR2 = super_brute_force_LowRank(dX, words)
+    print(LowR2)
 
     assert torch.allclose(LowR1, LowR2, atol=10**-3)
 

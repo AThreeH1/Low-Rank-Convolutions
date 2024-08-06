@@ -14,7 +14,7 @@ sys.path.append(parent_dir)
 from utils.imports import *
 from models.StandAloneFFN import FFN
 from models.StandAloneHyena import HyenaOperator
-from data.datagenerator import DataGenerate
+from data.datagenerator import DataGenerate, task2
 from Preprocessing.ISS import ISS
 from data.datagenerator import SimpleDataGenerate
 
@@ -89,7 +89,8 @@ class FFN(pl.LightningModule):
 Total_batches = 1000
 sequence_length = 500
 dim = 2
-data = DataGenerate(Total_batches, sequence_length, dim)
+jumps = 1
+data = task2(Total_batches, sequence_length, jumps)
 
 x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
 x_data = x_datax.permute(0, 2, 1)

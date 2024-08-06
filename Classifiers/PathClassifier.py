@@ -41,9 +41,9 @@ sweep_config = {
         
         'd' : {'values': [3, 4, 5]},
 
-        'liegroup' : {'values': ['SO', 'SE', 'SP']},
+        'liegroup' : {'values': ['SO']},
 
-        'layers' : {'values': [1, 2, 3, 4]}
+        'layers' : {'values': [1]}
         
     }
 }
@@ -67,6 +67,7 @@ class PathClassifier(pl.LightningModule):
         ):
         super(PathClassifier, self).__init__()
         self.FFN = FFN
+        self.d = d
         # self.PathD = PathD
         self.Hyena = Hyena
         self.x_data = input
@@ -75,12 +76,20 @@ class PathClassifier(pl.LightningModule):
         self.batch_size = batch_size
         self.overfit = overfit
         self.layers = nn.ModuleList([PathD(d, liegroup) for _ in range(layers)])
+        self.projection_layer = nn.Linear(d * d, input.size(1)*input.size(1))
+        self.conv = nn.Conv2d(in_channels=1, out_channels=output_dim * output_dim, kernel_size=1)
 
     def forward(self,x):
         for layer in self.layers:
-            x = self.PathD(x)
-        # p = y.permute(0, 2, 1)
-        # q = self.Hyena(p)
+            a = x.size(1)
+            x = layer(x)
+            x = x.view(x.size(0) * x.size(1), self.d * self.d)
+            x = self.projection_layer(x)
+            x = x.view(x.size(0), x.size(1), a, a)
+        x = x.permute(0, 2, 1)
+        if self.Hyena:
+            x = self.Hyena(x)
+        x = x.permute(0, 2, 1)
         a, b, d, _ = x.shape
         k = x.view(a, b, d**2)
         z = k[:,-1,:]

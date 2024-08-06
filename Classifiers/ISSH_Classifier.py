@@ -32,17 +32,17 @@ sweep_config = {
 
     'parameters': {
 
-        # 'order': {'values': [0, 2, 4, 8, 12, 16]},
-        'order': {'values': [0]},
+        'order': {'values': [0, 2, 4, 8, 12, 16]},
+        # 'order': {'values': [0]},
  
         'words': {'values': [2, 4, 6, 8, 12, 16, 20, 24]},
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
        
-        'epochs': {'values': [10]}, #, 20, 30, 40, 50, 100, 200
+        'epochs': {'values': [10, 20, 30, 40, 50, 100]}, #, 200
 
-        'batch_size': {'values': [20, 40, 60, 80]},
-        # 'batch_size': {'values': [1, 2, 4, 8, 16, 32, 64, 128]},
+        # 'batch_size': {'values': [20, 40, 60, 80]},
+        'batch_size': {'values': [1, 2, 4, 8, 16, 32, 64, 128]},
 
         'layers' : {'values': [1, 2, 3, 4]}
     }
@@ -59,7 +59,7 @@ class ISSHClassifier(pl.LightningModule):
         self.x_data = input
         self.target = target
         self.learning_rate = learning_rate
-        self.batch_size = batch_size
+        self.batch_size = batch_size  
         self.overfit = overfit
         self.layers = nn.ModuleList([LowRank(words) for _ in range(layers)])
 
@@ -171,6 +171,25 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     trainer.fit(model)
     trainer.test(model)
 
+    # # Tracking gradients of input with respect to input
+    # model.eval()
+    # total_gradients = torch.zeros(x_data.size(-2), x_data.size(-1))
+
+    # for x_batch, y_batch in model.train_dataloader():
+    #     x_batch.requires_grad = True
+    #     output = model(x_batch)  
+        
+    #     # Get the loss for the output
+    #     loss = F.cross_entropy(output, y_batch)
+    #     loss.backward()
+
+    #     # Accumulate gradients
+    #     total_gradients += x_batch.grad.abs().sum(dim=0)
+
+    # # Average gradients over all batches
+    # average_gradients = total_gradients / len(model.train_dataloader())
+    # print("Average Input Gradients: ", average_gradients)
+
 OVERFIT = False
 # OVERFIT = True
 
@@ -182,7 +201,7 @@ else:
 
 sequence_length = 500
 dim = 2
-jumps = 3
+jumps = 1
 data = task2(Total_batches, sequence_length, jumps)
 
 def run_sweep():
@@ -192,7 +211,7 @@ def run_sweep():
     if OVERFIT:
         sweep_config['name'] += '-overfit'
     sweep_id = wandb.sweep(sweep_config, project='ISSHJumps')
-    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=1)
+    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=100)
 
 if __name__ == "__main__":
     run_sweep()

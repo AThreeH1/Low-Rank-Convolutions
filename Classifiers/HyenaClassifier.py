@@ -167,7 +167,7 @@ def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20, overfit
     trainer.test(model)
 
 OVERFIT = False
-OVERFIT = True
+# OVERFIT = True
 
 if OVERFIT:
     Total_batches = 10
@@ -178,7 +178,7 @@ else:
 
 sequence_length = 500
 dim = 2
-jumps = 3
+jumps = 1
 data = task2(Total_batches, sequence_length, jumps)
 
 def run_sweep():
@@ -187,7 +187,7 @@ def run_sweep():
     if OVERFIT:
         sweep_config['name'] += '-overfit'
     sweep_id = wandb.sweep(sweep_config, project='HyenaJumps')
-    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=100)
+    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=1)
 
 if __name__ == "__main__":
     run_sweep()
