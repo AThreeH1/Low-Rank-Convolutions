@@ -28,7 +28,7 @@ def ISS(x_data, a):
     bs = x_data.size(0)
     out = []
     dims = x_data.size(1)
-    # x_data = torch.diff(x_data, dim=-1,prepend=torch.zeros(bs,dims,1, device = x_data.device))
+    x_data = torch.diff(x_data, dim=-1,prepend=torch.zeros(bs,dims,1, device = x_data.device))
 
     possible_combinations = dims*(dims-1)
     power = (a//possible_combinations) + 1

@@ -26,25 +26,25 @@ from datetime import datetime
 sweep_config = {
     'name' : 'sweep',
 
-    'method': 'bayes',
+    'method': 'random',
 
     'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
 
     'parameters': {
 
-        'order': {'values': [0, 2, 4, 8, 12, 16]},
+        'order': {'values': [0, 2, 4, 8, 16]}, #12, 
         # 'order': {'values': [0]},
  
-        'words': {'values': [2, 4, 6, 8, 12, 16, 20, 24]},
+        'words': {'values': [2, 4, 8, 16, 20, 24]}, #6, 12,
         
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
        
-        'epochs': {'values': [10, 20, 30, 40, 50, 100]}, #, 200
+        'epochs': {'values': [10, 20, 40, 100, 200]}, #30, 50
 
         # 'batch_size': {'values': [20, 40, 60, 80]},
-        'batch_size': {'values': [1, 2, 4, 8, 16, 32, 64, 128]},
+        'batch_size': {'values': [1, 8, 16, 32, 64, 128]}, #2, 4,
 
-        'layers' : {'values': [1, 2, 3, 4]}
+        'layers' : {'values': [1, 2, 4]}
     }
 }
 
@@ -211,7 +211,7 @@ def run_sweep():
     if OVERFIT:
         sweep_config['name'] += '-overfit'
     sweep_id = wandb.sweep(sweep_config, project='ISSHJumps')
-    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=100)
+    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=300)
 
 if __name__ == "__main__":
     run_sweep()

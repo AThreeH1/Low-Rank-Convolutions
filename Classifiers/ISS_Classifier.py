@@ -17,12 +17,39 @@ from models.StandAloneHyena import HyenaOperator
 from data.datagenerator import DataGenerate, task2
 from Preprocessing.ISS import ISS
 from data.datagenerator import SimpleDataGenerate
+from pytorch_lightning.callbacks import ModelCheckpoint
+
+from functools import partial
+from datetime import datetime
+
+sweep_config = {
+    'name' : 'sweep',
+
+    'method': 'random',
+
+    'metric': {'name': 'test_accuracy', 'goal': 'maximize'},
+
+    'parameters': {
+ 
+        'words': {'values': [2, 4, 8, 16, 20, 24]},
+        
+        'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
+       
+        'epochs': {'values': [10, 20, 40, 100, 200]}, 
+
+        'batch_size': {'values': [16, 32, 64, 128]}, 
+
+    }
+}
+
 
 class FFN(pl.LightningModule):
-    def __init__(self, input_dim, input, target):
+    def __init__(self, input_dim, input, target, learning_rate, batch_size):
         super(FFN, self).__init__()
         self.x_input = input
         self.target = target
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
         self.fc1 = nn.Linear(input_dim, 5)
         self.fc2 = nn.Linear(5, 3)
 
@@ -38,15 +65,15 @@ class FFN(pl.LightningModule):
         self.train_dataset, self.test_dataset = random_split(total_dataset, [train_size, test_size])
 
     def train_dataloader(self):
-        train_loader = DataLoader(self.train_dataset, batch_size=40, shuffle=True, num_workers=23)
+        train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=23)
         return train_loader
 
     def test_dataloader(self):
-        test_loader = DataLoader(self.test_dataset, batch_size=40, shuffle=False, num_workers=23)
+        test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=23)
         return test_loader
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return {"optimizer": optimizer}
 
     def training_step(self, batch, batch_idx):
@@ -78,52 +105,70 @@ class FFN(pl.LightningModule):
         correct = (predicted_labels == y).sum().item()
         total = y.size(0)
         accuracy = correct / total
-        Array_accuracy.append(predicted_labels)
-        Actual_labels.append(y)
 
         # Log accuracy
         self.log("test_accuracy", accuracy, on_step=False, on_epoch=True)
 
         return {'test_accuracy': accuracy}
 
+
+# Training function to use wandb sweep
+def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20):
+    if use_wandb:
+        wandb.init()
+        config = wandb.config
+        words = config.words
+        learning_rate = config.learning_rate
+        epochs = config.epochs
+        batch_size = config.batch_size
+
+    # Convert data into tensors
+    x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data], dtype=torch.float32)
+    x_data = x_datax.permute(0, 2, 1)
+    labels = torch.tensor([data_point[-1] for data_point in data])
+
+    bs, b, c = x_data.size()
+    x = torch.zeros([bs, words])
+
+    for i in range(words):
+        x[:, i] = ISS(x_data, i)[-1][-1][:,-1:].view(-1)
+
+    model = FFN(words, x, labels, learning_rate, batch_size)
+    print(model)
+
+    checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
+
+    if use_wandb:
+        wandb_logger = WandbLogger(project='ISSJumps', log_model="all")
+        wandb_logger.watch(model, log="all", log_freq=10, log_graph=True)
+    else:
+        wandb_logger = None
+
+    trainer = pl.Trainer(
+        accelerator="auto",
+        max_epochs=epochs,
+        logger=wandb_logger,
+        default_root_dir=current_dir,
+        callbacks=[checkpoint_callback]
+    )
+
+    trainer.fit(model)
+    trainer.test(model)
+
+
+
 Total_batches = 1000
 sequence_length = 500
-dim = 2
 jumps = 1
 data = task2(Total_batches, sequence_length, jumps)
 
-x_datax = torch.tensor([[[*idata] for idata in zip(*data_point[:-1])] for data_point in data])
-x_data = x_datax.permute(0, 2, 1)
-x_data = torch.tensor(x_data, dtype=torch.float32)
-labels = torch.tensor([data_point[-1] for data_point in data])
-words = 2
+def run_sweep():
+    wandb.login() # Use wandb login procedure, instead of hardcoded API key.
+    sweep_config['name'] +=  'J' + str(jumps)
+    sweep_config['name'] +=  datetime.now().strftime('-%Y-%m-%d-%H:%M')
+    sweep_id = wandb.sweep(sweep_config, project='ISSJumps')
+    wandb.agent(sweep_id, function=partial(train), count=100)
 
-bs, b, c = x_data.size()
-x = torch.zeros([bs, words])
-
-for i in range(words):
-    x[:, i] = ISS(x_data, i)[-1][-1][:,-1:].view(-1)
-
-Array_accuracy = []
-Actual_labels = []
-
-# model = LowRankModel(words)
-input_dim = words
-# print(x)
-# print(labels)
-FFNmodel = FFN(input_dim, x, labels)
-
-checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
-
-trainer = pl.Trainer(
-    accelerator="gpu",
-    max_epochs=11,
-    log_every_n_steps=10,
-    default_root_dir = current_dir
-)
-
-trainer.fit(FFNmodel)
-trainer.test(FFNmodel)
-
-
+if __name__ == "__main__":
+    run_sweep()
 
