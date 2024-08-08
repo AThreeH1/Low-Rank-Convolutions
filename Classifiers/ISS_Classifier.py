@@ -155,8 +155,6 @@ def train(use_wandb=True, words=2, learning_rate=0.001, epochs=10, batch_size=20
     trainer.fit(model)
     trainer.test(model)
 
-
-
 Total_batches = 1000
 sequence_length = 500
 jumps = 1

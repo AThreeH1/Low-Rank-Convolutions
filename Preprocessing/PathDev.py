@@ -1,5 +1,17 @@
-import torch
-import torch.nn as nn
+import os
+import sys
+
+# Get the directory of the current script
+current_dir = os.path.dirname(__file__)
+
+# Append the parent directory to the system path
+parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
+sys.path.append(parent_dir)
+
+# Now you can import your modules
+from utils.imports import *
+from models.DevLayer import development_layer
+from models.Devnet import so
 
 class PathDev(nn.Module):
     def __init__(self, d, liegroup):
@@ -32,6 +44,7 @@ class PathDev(nn.Module):
         self.A2 = nn.Parameter(torch.randn(d, d))
 
     def SE(self, X):
+        X = torch.diff(X, dim=-1,prepend=torch.zeros(bs,dims,1, device = X.device))
         a, b, d, d = X.shape
         so = X[..., :-1, :-1] - X[..., :-1, :-1].T
 
@@ -276,6 +289,10 @@ if __name__ == "__main__":
     X1_path_dev = path_dev(Z)[0][:,1,:,:]
     # print(X1_path_dev)
 
+    dev = development_layer(
+        input_size=seq_length, hidden_size=d, param=so, return_sequence=False)
+    out = dev(Z)
+    print(out)
 
     # Please set A1 and A2 to the commented tensors before running the assertion 
     # assert torch.allclose(X1_brute, X1_path_dev)

@@ -35,11 +35,11 @@ sweep_config = {
 
         'learning_rate': {'values': [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.0075, 0.01]},
         
-        'epochs': {'values': [10]},
+        'epochs': {'values': [10, 20, 40]},
 
         'batch_size': {'values': [20, 40, 60, 80]},
         
-        'd' : {'values': [3, 4, 5]},
+        'd' : {'values': [3, 4, 5, 6]},
 
         'liegroup' : {'values': ['SO']},
 
@@ -48,6 +48,13 @@ sweep_config = {
     }
 }
 
+class projection(nn.Module):
+    def __init__(self, input, output):
+        super(projection, self).__init__()
+        self.fc1 = torch.nn.Linear(input, output)
+    def forward(self, x):
+        x = self.fc1(x)
+        return x
 
 ### FunctionClassifier
 class PathClassifier(pl.LightningModule):
@@ -63,6 +70,7 @@ class PathClassifier(pl.LightningModule):
             d,
             liegroup,
             layers,
+            projection_layer,
             overfit=False
         ):
         super(PathClassifier, self).__init__()
@@ -76,26 +84,20 @@ class PathClassifier(pl.LightningModule):
         self.batch_size = batch_size
         self.overfit = overfit
         self.layers = nn.ModuleList([PathD(d, liegroup) for _ in range(layers)])
-        self.projection_layer = nn.Linear(d * d, input.size(1)*input.size(1))
-        self.conv = nn.Conv2d(in_channels=1, out_channels=output_dim * output_dim, kernel_size=1)
+        self.projection_layer = projection_layer
 
     def forward(self,x):
         for layer in self.layers:
-            a = x.size(1)
+            a, b, c = x.size()
             x = layer(x)
-            x = x.view(x.size(0) * x.size(1), self.d * self.d)
+            x = x.view(a * b, self.d * self.d)
             x = self.projection_layer(x)
-            x = x.view(x.size(0), x.size(1), a, a)
-        x = x.permute(0, 2, 1)
+            x = x.view(a, b, c)
         if self.Hyena:
             x = self.Hyena(x)
         x = x.permute(0, 2, 1)
-        a, b, d, _ = x.shape
-        k = x.view(a, b, d**2)
-        z = k[:,-1,:]
-        z1 = z.view(a, d**2)
-        zf = z1.float()
-        out = self.FFN(zf)
+        z = x[:, :, -1]
+        out = self.FFN(z)
         return out
 
     def prepare_data(self):
@@ -181,8 +183,9 @@ def train(use_wandb=True, learning_rate=0.001, epochs=10, batch_size=20, overfit
         Hyena = None
     else:
         Hyena = HyenaOperator(d_model=d_model, l_max=sequence_length, order=order, dropout=0.0, filter_dropout=0.0)
-    ffn = FFN(d**2)
-    model = PathClassifier(PathD, Hyena, ffn, x_data, labels, learning_rate, batch_size, d, liegroup, layers, overfit=overfit)
+    ffn = FFN(x_data.size(2))
+    projection_layer = projection(d**2, x_data.size(2))
+    model = PathClassifier(PathD, Hyena, ffn, x_data, labels, learning_rate, batch_size, d, liegroup, layers, projection_layer, overfit=overfit)
     print(model)
 
     checkpoint_callback = ModelCheckpoint(monitor='val_accuracy', mode='max')
@@ -227,7 +230,7 @@ def run_sweep():
     if OVERFIT:
         sweep_config['name'] += '-overfit'
     sweep_id = wandb.sweep(sweep_config, project='PathJumps')
-    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=1)
+    wandb.agent(sweep_id, function=partial(train,overfit=OVERFIT), count=20)
 
 if __name__ == "__main__":
     run_sweep()
