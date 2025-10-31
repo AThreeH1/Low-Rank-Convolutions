@@ -1,31 +1,32 @@
-# Low-Rank Implementation — Hyena vs MHA, Iterative Sums Signature & Path Development Network
+# Low-Rank Implementation — Iterative Sums Signature (ISS) & Path Development Network  
+*(with Hyena ⇄ MHA experiments used for baseline parameterization)*
 
 ## Overview
 
-This repository implements three related components for modeling and classifying multi-dimensional time series:
+This repository provides a **low-rank implementation of Iterative Sums Signatures (ISS)** and a **Path Development Network** for multi-dimensional time series, along with classifiers built on top of these representations.
 
-1. **Hyena Hierarchy vs Multi-Head Attention (MHA)** — experiments that train a Hyena model to *mimic* the outputs of a Multi-Head Attention model at different orders, to evaluate where Hyena approximates MHA while being more efficient (Hyena is designed to be less costly than full quadratic MHA).
-2. **Iterative Sums Signature (ISS)** — a low-rank implementation of iterative sums signatures for time series.
-3. **Path Development Network** — tools to compute path development features and combine them with classifiers.
+The **primary focus** of this work is on the **ISS and Path Development models** — their mathematical formulation, low-rank implementations, and classification performance.  
+The **Hyena vs Multi-Head Attention (MHA)** experiments included here are **supporting components**: they are used to **parameterize and tune the Hyena model** so that it can serve as an efficient and fair baseline for comparison with our low-rank ISS and Path Development models.
 
-The repository also includes classifiers that use ISS or Path Development features (optionally combined with Hyena outputs) to perform classification on multidimensional time series.
-
-> **Note:** The primary focus of current experiments is on comparing **Hyena** and **MHA** (in terms of performance, representational similarity, and computational efficiency). The ISS and Path Development modules complement these by providing feature extraction and classification capabilities.
+A key insight is that the **low-rank structure** of these models allows the underlying formulae to be **separated into individual components**, enabling computation via **convolution operations** on each term. Using **Fast Fourier Transform (FFT)-based convolutions**, this reduces computational complexity from **O(n²)** to **O(n log n)** — allowing these methods to efficiently scale to longer sequences.
 
 ---
 
 ## Highlights
 
-- Train **Hyena** using **MHA outputs** as targets to evaluate how well Hyena reproduces attention-based representations at different orders.
-- Efficient, low-rank **Iterative Sums Signature (ISS)** implementation for time-series feature extraction.
-- **Path Development Network** features for sequence modeling and downstream classification.
-- **Flexible experiment orchestration** via `Analysis.py`, with built-in logging to **Weights & Biases (wandb)** for metrics, gradients, and loss visualization.
+- Primary modules:
+  - **Iterative Sums Signature (ISS)** — low-rank formulation for structured time-series features.
+  - **Path Development Network** — complementary framework for capturing sequential dependencies.
+- **Low-rank factorization** allows separable convolutional computations using FFTs → **O(n log n)** runtime.
+- **Hyena vs MHA** experiments used to parameterize Hyena as a tuned baseline.
+- **Classifiers** for ISS, Path Development, and hybrid (ISS + Hyena) architectures.
+- **Experiment management & logging** through Weights & Biases (wandb).
 
 ---
 
 ## Quick Start
 
-### A. Environment Setup
+### 1. Environment Setup
 
 Create and activate a virtual environment, then install dependencies:
 
