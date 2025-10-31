@@ -30,9 +30,9 @@ A key insight is that the **low-rank structure** of these models allows the unde
    
 ### For ISS and Path Development
 
-Go to 'models/' directly and refer to:
-1. 'ISS.py' for ISS
-2. 'PathDev.py' for Path development layer
+Go to `models/` directly and refer to:
+1. `ISS.py` for ISS
+2. `PathDev.py` for Path development layer
 
 ---
 
