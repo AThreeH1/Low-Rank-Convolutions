@@ -26,19 +26,28 @@ A key insight is that the **low-rank structure** of these models allows the unde
 
 ## Quick Start
 
+1. Run `Imports.py`
+   
+### For ISS and Path Development
+
+Go to 'models/' directly and refer to:
+1. 'ISS.py' for ISS
+2. 'PathDev.py' for Path development layer
+
+---
+
 ### For ISS and Path Development Classifiers
 
 Go to the `classifiers/` directory and run:
 
-1. `ISS_Classifier.py` — for ISS  
-2. `ISSH_Classifier.py` — for ISS + Hyena  
+1. `ISS_Classifier.py` — for ISS-based classifier
+2. `ISSH_Classifier.py` — for ISS + Hyena based classifier
 3. and so on
-4. 
+   
 ---
 
 ### For Hyena vs MHA
 
-1. Run `Imports.py`  
 2. Run `MultiHeadAttention.py`  
 3. Run `HyenaLightning.py`  
 4. Run `Analysis.py` — modify hyperparameters such as **order**, **learning rate**, **optimizer**, etc., as needed.  
