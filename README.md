@@ -26,12 +26,21 @@ A key insight is that the **low-rank structure** of these models allows the unde
 
 ## Quick Start
 
-### 1. Environment Setup
+### For ISS and Path Development Classifiers
 
-Create and activate a virtual environment, then install dependencies:
+Go to the `classifiers/` directory and run:
 
-```bash
-python -m venv venv
-source venv/bin/activate      # macOS / Linux
-# or: venv\Scripts\activate   # Windows
-pip install -r requirements.txt
+1. `ISS_Classifier.py` — for ISS  
+2. `ISSH_Classifier.py` — for ISS + Hyena  
+3. and so on
+4. 
+---
+
+### For Hyena vs MHA
+
+1. Run `Imports.py`  
+2. Run `MultiHeadAttention.py`  
+3. Run `HyenaLightning.py`  
+4. Run `Analysis.py` — modify hyperparameters such as **order**, **learning rate**, **optimizer**, etc., as needed.  
+   Log in to your **wandb** account to record gradients, losses, and errors.
+
